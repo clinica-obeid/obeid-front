@@ -2,8 +2,7 @@
  * Geração do estado inicial do "banco" do protótipo.
  *
  * As datas são calculadas a partir de hoje para que a demonstração sempre
- * tenha agenda do dia e um histórico recente, independentemente de quando
- * for executada.
+ * tenha atendimentos recentes, independentemente de quando for executada.
  */
 import { PACIENTES } from './pacientes.js'
 
@@ -26,55 +25,53 @@ function em(dias, hhmm) {
 let seq = 0
 const uid = (prefixo) => `${prefixo}-${String(++seq).padStart(4, '0')}`
 
-/** Consultas: passado (finalizadas), hoje (fluxo ativo) e futuro (agendadas). */
+/** Consultas já realizadas — cada uma agrupa os registros daquela visita. */
 function construirConsultas() {
-  const c = (pacienteId, dias, hora, medicoId, salaId, status, tipo, motivo) => ({
-    id: uid('con'),
-    pacienteId,
-    medicoId,
-    salaId,
-    data: em(dias, hora),
-    status,
-    tipo,
-    motivo,
-    criadoEm: em(dias - 7, '09:00'),
-  })
+  const c = (pacienteId, dias, hora, medicoId, tipo, motivo) => {
+    const inicio = em(dias, hora)
+    return {
+      id: uid('con'),
+      pacienteId,
+      medicoId,
+      data: inicio,
+      tipo,
+      motivo,
+      // Todo atendimento do seed já aconteceu e foi concluído; só um iniciado
+      // durante a demonstração fica em aberto.
+      encerradaEm: new Date(new Date(inicio).getTime() + 40 * 60_000).toISOString(),
+      criadoEm: inicio,
+    }
+  }
 
   return [
     // --- Histórico (consultas finalizadas) ---
-    c('pac-001', -420, '09:00', 'med-1', 'sala-1', 'finalizado', 'Retorno', 'Controle de glaucoma'),
-    c('pac-001', -300, '09:30', 'med-1', 'sala-1', 'finalizado', 'Retorno', 'Controle de glaucoma'),
-    c('pac-001', -180, '10:00', 'med-1', 'sala-1', 'finalizado', 'Retorno', 'Controle de glaucoma'),
-    c('pac-001', -60, '09:00', 'med-1', 'sala-1', 'finalizado', 'Retorno', 'Controle de glaucoma'),
-    c('pac-002', -240, '14:00', 'med-2', 'sala-2', 'finalizado', 'Primeira consulta', 'Baixa visual progressiva'),
-    c('pac-002', -90, '14:30', 'med-2', 'sala-2', 'finalizado', 'Retorno', 'Retinopatia diabética'),
-    c('pac-003', -150, '11:00', 'med-3', 'sala-3', 'finalizado', 'Primeira consulta', 'Distorção visual'),
-    c('pac-004', -45, '08:30', 'med-3', 'sala-3', 'finalizado', 'Primeira consulta', 'Catarata bilateral'),
-    c('pac-007', -200, '15:00', 'med-1', 'sala-1', 'finalizado', 'Retorno', 'Pós-operatório de trabeculectomia'),
-    c('pac-007', -80, '15:30', 'med-1', 'sala-1', 'finalizado', 'Retorno', 'Controle de glaucoma'),
-    c('pac-009', -120, '16:00', 'med-2', 'sala-2', 'finalizado', 'Retorno', 'DMRI exsudativa'),
-    c('pac-009', -30, '16:00', 'med-2', 'sala-2', 'finalizado', 'Retorno', 'DMRI exsudativa'),
-    c('pac-011', -100, '10:30', 'med-3', 'sala-3', 'finalizado', 'Retorno', 'Uveíte anterior'),
-    c('pac-012', -70, '13:30', 'med-1', 'sala-1', 'finalizado', 'Retorno', 'Suspeita de progressão'),
+    c('pac-001', -420, '09:00', 'med-1', 'Retorno', 'Controle de glaucoma'),
+    c('pac-001', -300, '09:30', 'med-1', 'Retorno', 'Controle de glaucoma'),
+    c('pac-001', -180, '10:00', 'med-1', 'Retorno', 'Controle de glaucoma'),
+    c('pac-001', -60, '09:00', 'med-1', 'Retorno', 'Controle de glaucoma'),
+    c('pac-002', -240, '14:00', 'med-2', 'Primeira consulta', 'Baixa visual progressiva'),
+    c('pac-002', -90, '14:30', 'med-2', 'Retorno', 'Retinopatia diabética'),
+    c('pac-003', -150, '11:00', 'med-3', 'Primeira consulta', 'Distorção visual'),
+    c('pac-004', -45, '08:30', 'med-3', 'Primeira consulta', 'Catarata bilateral'),
+    c('pac-007', -200, '15:00', 'med-1', 'Retorno', 'Pós-operatório de trabeculectomia'),
+    c('pac-007', -80, '15:30', 'med-1', 'Retorno', 'Controle de glaucoma'),
+    c('pac-009', -120, '16:00', 'med-2', 'Retorno', 'DMRI exsudativa'),
+    c('pac-009', -30, '16:00', 'med-2', 'Retorno', 'DMRI exsudativa'),
+    c('pac-011', -100, '10:30', 'med-3', 'Retorno', 'Uveíte anterior'),
+    c('pac-012', -70, '13:30', 'med-1', 'Retorno', 'Suspeita de progressão'),
 
-    // --- Hoje (fluxo de atendimento ativo, RFAGE02) ---
-    c('pac-001', 0, '08:00', 'med-1', 'sala-1', 'finalizado', 'Retorno', 'Controle de glaucoma'),
-    c('pac-012', 0, '08:30', 'med-1', 'sala-1', 'com-medico', 'Retorno', 'Curva tensional diária'),
-    c('pac-004', 0, '09:00', 'med-3', 'sala-3', 'em-exame', 'Retorno', 'Biometria pré-operatória'),
-    c('pac-002', 0, '09:30', 'med-2', 'sala-2', 'em-exame', 'Retorno', 'Retinografia e OCT'),
-    c('pac-008', 0, '10:00', 'med-3', 'sala-3', 'aguardando-triagem', 'Primeira consulta', 'Baixa acuidade para longe'),
-    c('pac-005', 0, '10:30', 'med-4', 'sala-2', 'aguardando-triagem', 'Retorno', 'Controle de ambliopia'),
-    c('pac-009', 0, '11:00', 'med-2', 'sala-2', 'agendado', 'Retorno', 'Injeção intravítrea'),
-    c('pac-007', 0, '14:00', 'med-1', 'sala-1', 'agendado', 'Retorno', 'Campo visual'),
-    c('pac-006', 0, '14:30', 'med-3', 'sala-3', 'agendado', 'Primeira consulta', 'Fadiga visual'),
-    c('pac-011', 0, '15:00', 'med-3', 'sala-3', 'agendado', 'Retorno', 'Uveíte anterior'),
+    // --- Atendimentos de hoje ---
+    c('pac-001', 0, '08:00', 'med-1', 'Retorno', 'Controle de glaucoma'),
+    c('pac-012', 0, '08:30', 'med-1', 'Retorno', 'Curva tensional diária'),
+    c('pac-004', 0, '09:00', 'med-3', 'Retorno', 'Biometria pré-operatória'),
+    c('pac-002', 0, '09:30', 'med-2', 'Retorno', 'Retinografia e OCT'),
+    c('pac-008', 0, '10:00', 'med-3', 'Primeira consulta', 'Baixa acuidade para longe'),
+    c('pac-005', 0, '10:30', 'med-4', 'Retorno', 'Controle de ambliopia'),
+    c('pac-009', 0, '11:00', 'med-2', 'Retorno', 'Injeção intravítrea'),
+    c('pac-007', 0, '14:00', 'med-1', 'Retorno', 'Campo visual'),
+    c('pac-006', 0, '14:30', 'med-3', 'Primeira consulta', 'Fadiga visual'),
+    c('pac-011', 0, '15:00', 'med-3', 'Retorno', 'Uveíte anterior'),
 
-    // --- Próximos dias ---
-    c('pac-010', 1, '08:30', 'med-3', 'sala-3', 'agendado', 'Primeira consulta', 'Avaliação ocupacional'),
-    c('pac-003', 1, '09:30', 'med-3', 'sala-3', 'agendado', 'Retorno', 'Ceratocone — avaliar crosslinking'),
-    c('pac-001', 2, '09:00', 'med-1', 'sala-1', 'agendado', 'Retorno', 'Curva tensional diária'),
-    c('pac-004', 2, '10:00', 'med-3', 'sala-proc', 'agendado', 'Procedimento', 'Facectomia — avaliação'),
-    c('pac-009', 3, '16:00', 'med-2', 'sala-proc', 'agendado', 'Procedimento', 'Injeção intravítrea de anti-VEGF'),
   ]
 }
 
@@ -127,10 +124,7 @@ const ANEXO_CV = [{ nome: 'campo-visual-24-2.pdf', tipo: 'application/pdf', tama
 
 /** Histórico de exames. Séries longitudinais para os pacientes de glaucoma. */
 function construirExames(consultas) {
-  // Exames só existem em consultas já realizadas — as futuras ficam de fora.
-  const fimDeHoje = new Date(hoje().getTime() + DIA).getTime()
-  const de = (pacienteId) =>
-    consultas.filter((c) => c.pacienteId === pacienteId && new Date(c.data).getTime() < fimDeHoje)
+  const de = (pacienteId) => consultas.filter((c) => c.pacienteId === pacienteId)
   const out = []
   const add = (...e) => out.push(...e)
 
@@ -413,8 +407,7 @@ function construirAnamneses(consultas) {
 /** Diagnósticos e plano terapêutico (RFDIA01–02). */
 function construirDiagnosticos(consultas) {
   const ultima = (pacienteId) => {
-    const lista = consultas.filter((c) => c.pacienteId === pacienteId && c.status === 'finalizado')
-    return lista[lista.length - 1]
+    return consultas.filter((c) => c.pacienteId === pacienteId).at(-1)
   }
   const d = (pacienteId, cids, plano) => {
     const consulta = ultima(pacienteId)
@@ -519,8 +512,7 @@ function construirProcedimentos(consultas) {
 /** Prescrições: óculos, medicamentos e atestados (RFPRE01–03). */
 function construirPrescricoes(consultas) {
   const ultima = (pacienteId) => {
-    const lista = consultas.filter((c) => c.pacienteId === pacienteId && c.status === 'finalizado')
-    return lista[lista.length - 1]
+    return consultas.filter((c) => c.pacienteId === pacienteId).at(-1)
   }
   const r = (pacienteId, tipo, dados) => {
     const consulta = ultima(pacienteId)
@@ -583,7 +575,6 @@ function construirPrescricoes(consultas) {
 /** Registro de acessos ao prontuário — trilha de auditoria (RNFSEG01 / LGPD). */
 function construirAcessos(consultas) {
   return consultas
-    .filter((c) => c.status === 'finalizado')
     .slice(-20)
     .map((c) => ({
       id: uid('acs'),

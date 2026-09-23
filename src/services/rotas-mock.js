@@ -7,14 +7,14 @@
  */
 import { rota } from './http.js'
 import * as db from '@/mocks/db.js'
-import { CID10, MEDICAMENTOS, MEDICOS, SALAS, PROCEDIMENTOS, CONVENIOS, COMORBIDADES, DOENCAS_OCULARES, ALERGIAS, STATUS_FLUXO } from '@/mocks/catalogos.js'
+import { CID10, MEDICAMENTOS, MEDICOS, PROCEDIMENTOS, CONVENIOS, COMORBIDADES, DOENCAS_OCULARES, ALERGIAS } from '@/mocks/catalogos.js'
 
 const porPaciente = (nome, pacienteId) =>
   db.colecao(nome).filter((r) => r.pacienteId === pacienteId)
 
 const maisRecentePrimeiro = (a, b) => new Date(b.data) - new Date(a.data)
 
-/** Dia do calendário local de um timestamp — a agenda é vista em hora local. */
+/** Dia do calendário local de um timestamp. */
 function diaLocal(iso) {
   const d = new Date(iso)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -44,21 +44,11 @@ rota('POST', '/pacientes', ({ body }) =>
 rota('PATCH', '/pacientes/:id', ({ params, body }) =>
   db.atualizar('pacientes', params.id, body))
 
-// ------------------------------------------------------------------- agenda
-rota('GET', '/consultas', ({ query }) => {
-  const data = query.get('data')
-  const medicoId = query.get('medicoId')
-  const salaId = query.get('salaId')
-  const pacienteId = query.get('pacienteId')
-
-  return db
-    .colecao('consultas')
-    .filter((c) => !data || diaLocal(c.data) === data)
-    .filter((c) => !medicoId || c.medicoId === medicoId)
-    .filter((c) => !salaId || c.salaId === salaId)
-    .filter((c) => !pacienteId || c.pacienteId === pacienteId)
-    .sort((a, b) => new Date(a.data) - new Date(b.data))
-})
+// -------------------------------------------------------------- consultas
+// A consulta é o atendimento em si: agrupa o que foi registrado no prontuário
+// numa mesma visita. Não há agendamento — ela nasce quando o atendimento começa.
+rota('GET', '/pacientes/:pacienteId/consultas', ({ params }) =>
+  porPaciente('consultas', params.pacienteId).sort(maisRecentePrimeiro))
 
 rota('GET', '/consultas/:id', ({ params }) =>
   db.colecao('consultas').find((c) => c.id === params.id) ?? null)
@@ -67,7 +57,7 @@ rota('POST', '/consultas', ({ body }) =>
   db.inserir('consultas', {
     ...body,
     id: db.novoId('con'),
-    status: body.status ?? 'agendado',
+    data: body.data ?? new Date().toISOString(),
     criadoEm: new Date().toISOString(),
   }))
 
@@ -131,7 +121,7 @@ rota('GET', '/pacientes/:pacienteId/timeline', ({ params }) => {
     prescricoes: prescricoes.filter((p) => p.consultaId === consulta.id),
   }))
 
-  // Registros lançados fora de um atendimento agendado (ex: um exame avulso)
+  // Registros lançados fora de um atendimento (ex: um exame avulso)
   // ainda pertencem ao histórico do paciente — agrupamos por dia.
   const avulsos = {}
   const agrupar = (lista, chave) => {
@@ -157,7 +147,7 @@ rota('GET', '/pacientes/:pacienteId/timeline', ({ params }) => {
         data: `${d}T23:59:00`,
         status: 'finalizado',
         tipo: 'Registro avulso',
-        motivo: 'Lançado fora de um atendimento agendado',
+        motivo: 'Lançado fora de um atendimento',
         avulso: true,
       },
     })
@@ -169,7 +159,6 @@ rota('GET', '/pacientes/:pacienteId/timeline', ({ params }) => {
 // ---------------------------------------------------------------- catálogos
 rota('GET', '/catalogos', () => ({
   medicos: MEDICOS,
-  salas: SALAS,
   convenios: CONVENIOS,
   cid10: CID10,
   medicamentos: MEDICAMENTOS,
@@ -177,7 +166,6 @@ rota('GET', '/catalogos', () => ({
   comorbidades: COMORBIDADES,
   doencasOculares: DOENCAS_OCULARES,
   alergias: ALERGIAS,
-  statusFluxo: STATUS_FLUXO,
 }))
 
 rota('GET', '/catalogos/cid10', ({ query }) => {

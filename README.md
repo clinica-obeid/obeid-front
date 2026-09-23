@@ -17,19 +17,46 @@ npm run build    # build de produção
 
 Requer Node 18+.
 
+## Deploy com Docker
+
+```bash
+docker build -t obeid-front:0.1.0 .
+docker run -d -p 8080:8080 obeid-front:0.1.0   # http://localhost:8080
+```
+
+Ou, com Compose:
+
+```bash
+docker compose up -d --build
+```
+
+A imagem é multi-stage: o primeiro estágio compila com Node 22, o segundo serve
+o `dist/` com nginx. Como todo o "backend" roda dentro do navegador, a imagem de
+produção não precisa de Node — são ~20 MB baseados em
+`nginxinc/nginx-unprivileged`, rodando como usuário `nginx` (uid 101) na porta
+**8080**, sem privilégios de root.
+
+O nginx devolve `index.html` para qualquer rota não encontrada, que é o que o
+`vue-router` em modo *history* exige para links diretos como
+`/pacientes/pac-001/exames` funcionarem. Os assets, cujos nomes já carregam hash
+de conteúdo, são cacheados por um ano; o `index.html` nunca.
+
+Para publicar atrás de um proxy em um subcaminho (ex: `/demo`), defina
+`base: '/demo/'` em `vite.config.js` antes de construir a imagem.
+
 ## O que dá para demonstrar
 
 | Fluxo | Onde |
 |---|---|
-| Fila de atendimento do dia | **Painel** |
-| Agendar consulta e mover o paciente pelo fluxo (triagem → exame → médico → finalizado) | **Agenda**, quadro de fluxo |
+| Busca de paciente por nome, CPF ou telefone (atalho `/`) | qualquer tela |
 | Cadastro completo com convênio, comorbidades, alergias e consentimento LGPD | **Pacientes → Novo paciente** |
-| Consulta guiada: anamnese → exames → diagnóstico → prescrição | **Agenda → Atender** |
+| Atendimento guiado: anamnese → exames → diagnóstico → prescrição | **Prontuário → Novo atendimento** |
 | 16 tipos de exame, cada um com formulário próprio e lateralidade OD/OE/AO | **Prontuário → Exames** |
 | Evolução de PIO, campo visual e OCT ao longo do tempo | **Prontuário → Exames → Acompanhamento** |
 | Receita de óculos pré-preenchida pela última refração, receita de colírios, atestado | **Prontuário → Prescrições** |
 | Documento em A4 pronto para impressão | botão **Imprimir** em qualquer prescrição |
 | Linha do tempo com tudo o que já aconteceu com o paciente | **Prontuário → Histórico** |
+| Trilha de acessos ao prontuário (LGPD) | rodapé de **Prontuário → Histórico** |
 
 O estado é salvo em `localStorage`: o que for criado durante a demonstração
 sobrevive ao *reload*. Para voltar ao ponto de partida, use
@@ -47,7 +74,7 @@ src/
 │   ├── db.js          coleções em memória + persistência
 │   ├── seed.js        estado inicial, com datas relativas a hoje
 │   └── exames/        um arquivo por tipo de exame + registry
-├── stores/            Pinia: pacientes, agenda, prontuário, catálogos
+├── stores/            Pinia: pacientes, prontuário, catálogos
 ├── components/        layout, comuns, motor de exames, formulários clínicos
 └── views/             telas e abas do prontuário
 ```
@@ -96,11 +123,15 @@ VITE_MOCK_LATENCIA_MAX=1200
 ## Cobertura dos requisitos
 
 Todos os requisitos funcionais de `requirements.md` estão implementados e
-navegáveis: cadastro (RFCAD01–03), agenda e fluxo (RFAGE01–02), anamnese
-(RFANA01–02), os 16 exames com schema próprio, lateralidade e anexos
-(RFEXA01–18), procedimentos separados dos exames (RFPRO01), diagnóstico com
-CID-10 e conduta (RFDIA01–02), as três prescrições (RFPRE01–03) e a linha do
-tempo (RFHIS01).
+navegáveis: cadastro (RFCAD01–03), anamnese (RFANA01–02), os 16 exames com
+schema próprio, lateralidade e anexos (RFEXA01–18), procedimentos separados dos
+exames (RFPRO01), diagnóstico com CID-10 e conduta (RFDIA01–02), as três
+prescrições (RFPRE01–03) e a linha do tempo (RFHIS01).
+
+Agendamento e acompanhamento do status do paciente no fluxo do consultório
+foram retirados do escopo. A *consulta* permanece como entidade — é o que
+agrupa os registros de uma mesma visita na linha do tempo —, mas ela nasce no
+próprio prontuário, ao iniciar um atendimento, e não numa agenda.
 
 Quanto aos não funcionais: Vue.js (RNFTEC01), dados mockados (RNFTEC02), API
 fantasma com latência e envelope reais (RNFTEC03), mock isolado atrás de uma

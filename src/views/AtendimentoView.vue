@@ -7,7 +7,6 @@ import Message from 'primevue/message'
 import ProgressSpinner from 'primevue/progressspinner'
 import { useToast } from 'primevue/usetoast'
 import PacienteAvatar from '@/components/common/PacienteAvatar.vue'
-import StatusTag from '@/components/common/StatusTag.vue'
 import ExameDialog from '@/components/exames/ExameDialog.vue'
 import AnamneseTab from '@/views/prontuario/AnamneseTab.vue'
 import ExamesTab from '@/views/prontuario/ExamesTab.vue'
@@ -17,12 +16,11 @@ import { api } from '@/services/api.js'
 import { usePacientesStore } from '@/stores/pacientes.js'
 import { useProntuarioStore } from '@/stores/prontuario.js'
 import { useCatalogosStore } from '@/stores/catalogos.js'
-import { useAgendaStore } from '@/stores/agenda.js'
 import { exameDestaques } from '@/mocks/exames/index.js'
 import { formatarHora, idade } from '@/utils/formato.js'
 
 /**
- * Fluxo de consulta (RNFUSA02).
+ * Atendimento em curso (RNFUSA02).
  *
  * Reúne os módulos do prontuário numa sequência de passos e mantém o
  * contexto da consulta, para que tudo o que for registrado fique vinculado
@@ -35,7 +33,6 @@ const toast = useToast()
 const pacientes = usePacientesStore()
 const prontuario = useProntuarioStore()
 const catalogos = useCatalogosStore()
-const agenda = useAgendaStore()
 
 const consulta = ref(null)
 const carregando = ref(true)
@@ -56,7 +53,7 @@ const paciente = computed(() => pacientes.atual)
 
 onMounted(async () => {
   await catalogos.carregar()
-  consulta.value = await api.agenda.get(props.consultaId)
+  consulta.value = await api.consultas.get(props.consultaId)
   if (consulta.value) {
     await pacientes.carregar(consulta.value.pacienteId)
     await prontuario.carregar(consulta.value.pacienteId, { forcar: true })
@@ -88,8 +85,8 @@ const concluido = (i) => [
 ][i]
 
 async function finalizar() {
-  await agenda.mudarStatus(props.consultaId, 'finalizado')
-  consulta.value = { ...consulta.value, status: 'finalizado' }
+  const encerrada = await prontuario.encerrarConsulta(props.consultaId)
+  consulta.value = encerrada ?? consulta.value
   toast.add({ severity: 'success', summary: 'Atendimento finalizado', life: 3000 })
   router.push({ name: 'prontuario-timeline', params: { id: consulta.value.pacienteId } })
 }
@@ -111,12 +108,17 @@ async function finalizar() {
         <p class="ob-small ob-muted contexto__meta">
           {{ idade(paciente?.dataNascimento) }} anos · {{ paciente?.convenio.nome }} ·
           {{ consulta.tipo }} às {{ formatarHora(consulta.data) }} ·
-          {{ catalogos.medico(consulta.medicoId)?.nome }} · {{ catalogos.sala(consulta.salaId)?.nome }}
+          {{ catalogos.medico(consulta.medicoId)?.nome }}
         </p>
         <p class="contexto__motivo">{{ consulta.motivo }}</p>
       </div>
       <div class="contexto__acoes">
-        <StatusTag :status="consulta.status" />
+        <Tag
+          v-if="consulta.encerradaEm"
+          value="Atendimento encerrado"
+          severity="success"
+          icon="pi pi-check-circle"
+        />
         <Button
           label="Prontuário completo"
           icon="pi pi-folder-open"
@@ -124,7 +126,7 @@ async function finalizar() {
           @click="router.push({ name: 'prontuario-timeline', params: { id: paciente.id } })"
         />
         <Button
-          v-if="consulta.status !== 'finalizado'"
+          v-if="!consulta.encerradaEm"
           label="Finalizar atendimento"
           icon="pi pi-check-circle"
           severity="success"
@@ -194,7 +196,7 @@ async function finalizar() {
         @click="passo++"
       />
       <Button
-        v-else-if="consulta.status !== 'finalizado'"
+        v-else-if="!consulta.encerradaEm"
         label="Finalizar atendimento"
         icon="pi pi-check-circle"
         severity="success"

@@ -1,18 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 const routes = [
-  {
-    path: '/',
-    name: 'dashboard',
-    component: () => import('@/views/DashboardView.vue'),
-    meta: { titulo: 'Painel', icone: 'pi-home' },
-  },
-  {
-    path: '/agenda',
-    name: 'agenda',
-    component: () => import('@/views/AgendaView.vue'),
-    meta: { titulo: 'Agenda', icone: 'pi-calendar' },
-  },
+  { path: '/', redirect: { name: 'pacientes' } },
   {
     path: '/pacientes',
     name: 'pacientes',

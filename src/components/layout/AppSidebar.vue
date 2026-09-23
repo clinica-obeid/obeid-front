@@ -1,26 +1,20 @@
 <script setup>
-import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import Badge from 'primevue/badge'
-import { useAgendaStore } from '@/stores/agenda.js'
 
 defineEmits(['navegar'])
 
 const route = useRoute()
-const agenda = useAgendaStore()
 
-const itens = computed(() => [
-  { to: { name: 'dashboard' }, rotulo: 'Painel', icone: 'pi-home' },
-  { to: { name: 'agenda' }, rotulo: 'Agenda', icone: 'pi-calendar', badge: agenda.emAndamento.length || null },
+const itens = [
   { to: { name: 'pacientes' }, rotulo: 'Pacientes', icone: 'pi-users' },
-])
+]
 
 const ativo = (nome) => route.name === nome || String(route.name ?? '').startsWith(nome)
 </script>
 
 <template>
   <nav class="side">
-    <RouterLink :to="{ name: 'dashboard' }" class="side__marca" @click="$emit('navegar')">
+    <RouterLink :to="{ name: 'pacientes' }" class="side__marca" @click="$emit('navegar')">
       <span class="side__logo"><i class="pi pi-eye" /></span>
       <span>
         <strong>Obeid</strong>
@@ -38,7 +32,6 @@ const ativo = (nome) => route.name === nome || String(route.name ?? '').startsWi
         >
           <i class="pi" :class="item.icone" />
           <span>{{ item.rotulo }}</span>
-          <Badge v-if="item.badge" :value="item.badge" severity="info" />
         </RouterLink>
       </li>
     </ul>
@@ -104,7 +97,6 @@ const ativo = (nome) => route.name === nome || String(route.name ?? '').startsWi
   background: var(--p-highlight-background);
   color: var(--p-highlight-color);
 }
-.side__item .p-badge { margin-left: auto; }
 
 .side__rodape { margin-top: auto; padding: 0.5rem; }
 </style>

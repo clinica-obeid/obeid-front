@@ -26,11 +26,10 @@ export const api = {
     update: (id, alteracoes) => http.patch(`/pacientes/${id}`, alteracoes).then(dados),
   },
 
-  agenda: {
-    list: (filtros) => http.get(`/consultas${qs(filtros)}`).then(dados),
+  consultas: {
+    listByPaciente: (pacienteId) => http.get(`/pacientes/${pacienteId}/consultas`).then(dados),
     get: (id) => http.get(`/consultas/${id}`).then(dados),
     create: (consulta) => http.post('/consultas', consulta).then(dados),
-    updateStatus: (id, status) => http.patch(`/consultas/${id}`, { status }).then(dados),
     update: (id, alteracoes) => http.patch(`/consultas/${id}`, alteracoes).then(dados),
   },
 

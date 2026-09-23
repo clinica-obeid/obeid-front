@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Button from 'primevue/button'
 import Tag from 'primevue/tag'
@@ -10,7 +10,7 @@ import DataMaskedText from '@/components/common/DataMaskedText.vue'
 import { usePacientesStore } from '@/stores/pacientes.js'
 import { useProntuarioStore } from '@/stores/prontuario.js'
 import { useCatalogosStore } from '@/stores/catalogos.js'
-import { formatarData, idade } from '@/utils/formato.js'
+import { formatarData, idade, isoLocal } from '@/utils/formato.js'
 
 /** Shell do prontuário: identifica o paciente e navega entre os módulos clínicos. */
 const props = defineProps({ id: { type: String, required: true } })
@@ -54,11 +54,37 @@ const identificacao = computed(() => {
   ].filter(Boolean)
 })
 
-/** Consulta ativa do paciente hoje — atalho para retomar o atendimento (RNFUSA02). */
+/**
+ * Atendimento em aberto: a consulta de hoje que ainda não foi encerrada.
+ * Serve de atalho para retomar o registro sem criar uma entrada duplicada.
+ */
+const ehHoje = (iso) => isoLocal(new Date(iso)) === isoLocal()
+
 const consultaAberta = computed(() =>
   prontuario.timeline
     .map((g) => g.consulta)
-    .find((c) => ['aguardando-triagem', 'em-exame', 'com-medico'].includes(c.status)))
+    .find((c) => !c.avulso && !c.encerradaEm && ehHoje(c.data)))
+
+const abrindoAtendimento = ref(false)
+
+/** Inicia um atendimento: cria a consulta e abre o passo a passo de registro. */
+async function novoAtendimento() {
+  if (consultaAberta.value) {
+    router.push({ name: 'atendimento', params: { consultaId: consultaAberta.value.id } })
+    return
+  }
+  abrindoAtendimento.value = true
+  try {
+    const consulta = await prontuario.iniciarConsulta({
+      medicoId: 'med-1',
+      tipo: prontuario.timeline.length ? 'Retorno' : 'Primeira consulta',
+      motivo: 'Atendimento',
+    })
+    router.push({ name: 'atendimento', params: { consultaId: consulta.id } })
+  } finally {
+    abrindoAtendimento.value = false
+  }
+}
 </script>
 
 <template>
@@ -100,10 +126,10 @@ const consultaAberta = computed(() =>
 
       <div class="ficha__acoes">
         <Button
-          v-if="consultaAberta"
-          label="Continuar atendimento"
-          icon="pi pi-play"
-          @click="router.push({ name: 'atendimento', params: { consultaId: consultaAberta.id } })"
+          :label="consultaAberta ? 'Continuar atendimento' : 'Novo atendimento'"
+          :icon="consultaAberta ? 'pi pi-play' : 'pi pi-plus'"
+          :loading="abrindoAtendimento"
+          @click="novoAtendimento"
         />
         <Button
           label="Editar cadastro"

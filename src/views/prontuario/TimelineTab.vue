@@ -9,7 +9,6 @@ import AccordionHeader from 'primevue/accordionheader'
 import AccordionContent from 'primevue/accordioncontent'
 import EmptyState from '@/components/common/EmptyState.vue'
 import EyeBadge from '@/components/common/EyeBadge.vue'
-import StatusTag from '@/components/common/StatusTag.vue'
 import ExameVisualizacao from '@/components/exames/ExameVisualizacao.vue'
 import { useProntuarioStore } from '@/stores/prontuario.js'
 import { useCatalogosStore } from '@/stores/catalogos.js'
@@ -25,6 +24,9 @@ const grupos = computed(() => prontuario.timeline)
 const totalRegistros = (g) =>
   g.exames.length + g.procedimentos.length + g.diagnosticos.length +
   g.prescricoes.length + (g.anamnese ? 1 : 0)
+
+/** Atendimento ainda não encerrado — o registro pode continuar sendo preenchido. */
+const emAberto = (consulta) => !consulta.avulso && !consulta.encerradaEm
 
 const TIPO_PRESCRICAO = {
   oculos: 'Receita de óculos',
@@ -46,7 +48,7 @@ const TIPO_PRESCRICAO = {
   <div v-else class="linha">
     <article v-for="g in grupos" :key="g.consulta.id" class="evento">
       <div class="evento__marcador">
-        <span class="evento__ponto" :class="{ 'evento__ponto--ativo': g.consulta.status !== 'finalizado' }" />
+        <span class="evento__ponto" :class="{ 'evento__ponto--ativo': emAberto(g.consulta) }" />
         <span class="evento__trilho" />
       </div>
 
@@ -57,8 +59,18 @@ const TIPO_PRESCRICAO = {
               <span class="evento__data">{{ formatarData(g.consulta.data) }}</span>
               <span class="ob-muted ob-small"> · {{ humanizarData(g.consulta.data) }}</span>
             </div>
-            <StatusTag v-if="!g.consulta.avulso" :status="g.consulta.status" />
-            <Tag v-else value="Registro avulso" severity="secondary" icon="pi pi-paperclip" />
+            <Tag
+              v-if="g.consulta.avulso"
+              value="Registro avulso"
+              severity="secondary"
+              icon="pi pi-paperclip"
+            />
+            <Tag
+              v-else-if="emAberto(g.consulta)"
+              value="Em aberto"
+              severity="info"
+              icon="pi pi-pencil"
+            />
           </div>
         </template>
 
@@ -67,7 +79,6 @@ const TIPO_PRESCRICAO = {
             {{ g.consulta.tipo }} · {{ g.consulta.motivo }}
             <template v-if="!g.consulta.avulso">
               · {{ catalogos.medico(g.consulta.medicoId)?.nome }}
-              · {{ catalogos.sala(g.consulta.salaId)?.nome }}
             </template>
           </span>
         </template>

@@ -7,15 +7,6 @@ export const MEDICOS = [
   { id: 'med-4', nome: 'Dr. Paulo Ferraz', crm: 'CRM-SP 099.231', especialidade: 'Oftalmopediatria' },
 ]
 
-export const SALAS = [
-  { id: 'sala-1', nome: 'Consultório 1' },
-  { id: 'sala-2', nome: 'Consultório 2' },
-  { id: 'sala-3', nome: 'Consultório 3' },
-  { id: 'sala-ex1', nome: 'Sala de Exames A' },
-  { id: 'sala-ex2', nome: 'Sala de Exames B' },
-  { id: 'sala-proc', nome: 'Sala de Procedimentos' },
-]
-
 export const CONVENIOS = [
   'Particular',
   'Amil',
@@ -26,17 +17,6 @@ export const CONVENIOS = [
   'NotreDame Intermédica',
   'SUS',
 ]
-
-/** Status do fluxo de atendimento (RFAGE02). */
-export const STATUS_FLUXO = [
-  { id: 'agendado', label: 'Agendado', cor: 'secondary', icone: 'pi-calendar' },
-  { id: 'aguardando-triagem', label: 'Aguardando triagem', cor: 'warn', icone: 'pi-clock' },
-  { id: 'em-exame', label: 'Em exame', cor: 'info', icone: 'pi-eye' },
-  { id: 'com-medico', label: 'Com médico', cor: 'contrast', icone: 'pi-user-plus' },
-  { id: 'finalizado', label: 'Finalizado', cor: 'success', icone: 'pi-check-circle' },
-]
-
-export const statusFluxo = (id) => STATUS_FLUXO.find((s) => s.id === id) ?? STATUS_FLUXO[0]
 
 /** Subset oftalmológico do CID-10 (RFDIA01). */
 export const CID10 = [

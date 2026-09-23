@@ -70,6 +70,28 @@ export const useProntuarioStore = defineStore('prontuario', () => {
   const salvarDiagnostico = criador('diagnosticos', diagnosticos)
   const salvarPrescricao = criador('prescricoes', prescricoes)
 
+  /**
+   * Abre um novo atendimento para o paciente.
+   * Sem agenda, a consulta nasce aqui: é o contêiner que agrupa o que for
+   * registrado nesta visita e a entrada correspondente na linha do tempo.
+   */
+  async function iniciarConsulta(dados) {
+    const consulta = await api.consultas.create({
+      ...dados,
+      pacienteId: pacienteId.value,
+      data: new Date().toISOString(),
+    })
+    timeline.value = await api.prontuario.timeline(pacienteId.value)
+    return consulta
+  }
+
+  /** Encerra o atendimento, congelando o momento em que ele terminou. */
+  async function encerrarConsulta(id) {
+    const consulta = await api.consultas.update(id, { encerradaEm: new Date().toISOString() })
+    timeline.value = await api.prontuario.timeline(pacienteId.value)
+    return consulta
+  }
+
   async function removerExame(id) {
     await api.exames.remove(id)
     exames.value = exames.value.filter((e) => e.id !== id)
@@ -92,6 +114,7 @@ export const useProntuarioStore = defineStore('prontuario', () => {
     pacienteId, timeline, anamneses, exames, procedimentos, diagnosticos,
     prescricoes, acessos, carregando,
     carregar, limpar, serie, ultimoExame, removerExame,
+    iniciarConsulta, encerrarConsulta,
     salvarAnamnese, salvarExame, salvarProcedimento, salvarDiagnostico, salvarPrescricao,
   }
 })
