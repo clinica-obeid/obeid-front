@@ -157,7 +157,7 @@ const fechar = () => window.close()
   width: 38px;
   height: 38px;
   border-radius: 8px;
-  background: #1f8b85;
+  background: #12548d;
   color: #fff;
 }
 

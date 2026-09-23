@@ -5,9 +5,16 @@
   --ob-header-h: 56px;
   --ob-sidebar-w: 232px;
 
-  --ob-od: #b45309; /* olho direito  */
-  --ob-oe: #1d4ed8; /* olho esquerdo */
-  --ob-ao: #6d28d9; /* ambos os olhos */
+  /*
+   * Lateralidade. Os três tons servem tanto de preenchimento dos rótulos
+   * OD/OE/AO quanto de cor das séries nos gráficos, e foram escolhidos com o
+   * validador de paleta: separáveis entre si sob daltonismo e com contraste
+   * suficiente para o texto que vai por cima (`--ob-eye-texto`).
+   */
+  --ob-od: #b45309; /* olho direito   */
+  --ob-oe: #1d4ed8; /* olho esquerdo  */
+  --ob-ao: #86198f; /* ambos os olhos */
+  --ob-eye-texto: #ffffff;
 
   /*
    * Superfícies do aplicativo.
@@ -23,9 +30,13 @@
 }
 
 :root.ob-dark {
+  /* No tema escuro os tons sobem de luminosidade para se destacarem do fundo,
+     e o texto do rótulo passa a ser escuro — o mesmo tom claro não sustentaria
+     texto branco. */
   --ob-od: #c9791a;
   --ob-oe: #4a90e2;
-  --ob-ao: #9f7aea;
+  --ob-ao: #c960aa;
+  --ob-eye-texto: var(--p-surface-900);
 
   --ob-fundo: var(--p-surface-950);
   --ob-superficie: var(--p-surface-900);
@@ -79,7 +90,7 @@ a { color: var(--p-primary-600); }
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.03em;
-  color: #fff;
+  color: var(--ob-eye-texto);
 }
 .ob-eye--od { background: var(--ob-od); }
 .ob-eye--oe { background: var(--ob-oe); }

@@ -62,6 +62,19 @@ O estado é salvo em `localStorage`: o que for criado durante a demonstração
 sobrevive ao *reload*. Para voltar ao ponto de partida, use
 **⚙ → Restaurar dados de demonstração**.
 
+## Identidade visual
+
+A paleta parte das duas cores da clínica — azul `#12548D` e cinza-azulado
+`#B2BDC6`. Os demais degraus de `src/theme.js` foram gerados em OKLab a partir
+delas, ancorando cada cor no degrau em que o sistema realmente a exibe
+(`primary.500` nos botões e links do tema claro; `surface.300` nas bordas e
+superfícies). Os contrastes de texto foram conferidos: 7,8:1 no botão primário,
+6,8:1 no texto secundário, 4,8:1 no botão do tema escuro.
+
+Os tons de lateralidade (OD âmbar, OE azul, AO magenta) são outra coisa: são
+cores de dado, escolhidas para permanecerem distinguíveis entre si sob
+daltonismo, e não seguem a marca.
+
 ## Arquitetura
 
 ```
