@@ -1,0 +1,102 @@
+/* Tokens e estilos base do aplicativo. */
+:root {
+  --ob-radius: 10px;
+  --ob-gap: 1rem;
+  --ob-header-h: 56px;
+  --ob-sidebar-w: 232px;
+
+  --ob-od: #b45309; /* olho direito  */
+  --ob-oe: #1d4ed8; /* olho esquerdo */
+  --ob-ao: #6d28d9; /* ambos os olhos */
+
+  /*
+   * Superfícies do aplicativo.
+   * A rampa `--p-surface-*` do PrimeVue vai sempre do claro ao escuro, então
+   * usá-la diretamente prenderia o layout ao tema claro. Estes três tokens
+   * nomeiam o papel (fundo da página, cartão, realce) e são redefinidos no
+   * tema escuro.
+   */
+  --ob-fundo: var(--p-surface-50);
+  --ob-superficie: var(--p-surface-0);
+  --ob-realce: var(--p-surface-100);
+  --ob-marcador: var(--p-surface-300);
+}
+
+:root.ob-dark {
+  --ob-od: #c9791a;
+  --ob-oe: #4a90e2;
+  --ob-ao: #9f7aea;
+
+  --ob-fundo: var(--p-surface-950);
+  --ob-superficie: var(--p-surface-900);
+  --ob-realce: var(--p-surface-800);
+  --ob-marcador: var(--p-surface-500);
+}
+
+* { box-sizing: border-box; }
+
+html, body, #app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: Inter, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  background: var(--ob-fundo);
+  color: var(--p-text-color);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 { margin: 0; font-weight: 600; line-height: 1.25; }
+
+a { color: var(--p-primary-600); }
+
+/* ---------------------------------------------------------------- utilitários */
+.ob-stack { display: flex; flex-direction: column; gap: var(--ob-gap); }
+.ob-row { display: flex; align-items: center; gap: 0.5rem; }
+.ob-row-wrap { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.ob-spacer { flex: 1; }
+.ob-muted { color: var(--p-text-muted-color); }
+.ob-small { font-size: 0.8125rem; }
+.ob-mono { font-variant-numeric: tabular-nums; }
+.ob-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.ob-grid {
+  display: grid;
+  gap: var(--ob-gap);
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+
+/* Rótulo de lateralidade (OD / OE / AO) */
+.ob-eye {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #fff;
+}
+.ob-eye--od { background: var(--ob-od); }
+.ob-eye--oe { background: var(--ob-oe); }
+.ob-eye--ao { background: var(--ob-ao); }
+
+/* Faixa de dados sensíveis / demonstração (RNFSEG01) */
+.ob-demo-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 1rem;
+  font-size: 0.75rem;
+  background: var(--p-amber-100);
+  color: var(--p-amber-900);
+  border-bottom: 1px solid var(--p-amber-300);
+}
+
+@media print {
+  .ob-no-print { display: none !important; }
+}
