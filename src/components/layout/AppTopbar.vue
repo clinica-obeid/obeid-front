@@ -28,7 +28,7 @@ async function procurar({ query }) {
 function abrirPaciente(evento) {
   const paciente = evento.value
   busca.value = null
-  router.push({ name: 'prontuario-timeline', params: { id: paciente.id } })
+  router.push({ name: 'prontuario-antecedentes', params: { id: paciente.id } })
 }
 
 function atalho(e) {

@@ -5,15 +5,22 @@ import Select from 'primevue/select'
 import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
 import { useCatalogosStore } from '@/stores/catalogos.js'
-import { OLHOS } from '@/utils/formato.js'
+import { clonarDados, OLHOS } from '@/utils/formato.js'
 
 /** Receita de medicamentos e colírios (RFPRE02). */
+const props = defineProps({
+  /** Valores de uma prescrição em correção. */
+  valorInicial: { type: Object, default: null },
+})
+
 const catalogos = useCatalogosStore()
 
-const form = ref({
+const vazio = () => ({
   itens: [{ medicamento: null, olho: 'AO', posologia: '', duracao: '' }],
   orientacoes: '',
 })
+
+const form = ref(props.valorInicial ? clonarDados(props.valorInicial) : vazio())
 
 /** Ao escolher o medicamento, sugere a posologia usual do catálogo. */
 function aoEscolher(item, nome) {

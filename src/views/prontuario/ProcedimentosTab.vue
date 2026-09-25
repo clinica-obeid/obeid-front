@@ -1,67 +1,88 @@
 <script setup>
 import { computed, ref } from 'vue'
-import Card from 'primevue/card'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
 import Select from 'primevue/select'
 import SelectButton from 'primevue/selectbutton'
 import Textarea from 'primevue/textarea'
+import InputText from 'primevue/inputtext'
 import DatePicker from 'primevue/datepicker'
 import { useToast } from 'primevue/usetoast'
 import EmptyState from '@/components/common/EmptyState.vue'
 import EyeBadge from '@/components/common/EyeBadge.vue'
+import RegistroCard from '@/components/prontuario/RegistroCard.vue'
 import { useProntuarioStore } from '@/stores/prontuario.js'
 import { useCatalogosStore } from '@/stores/catalogos.js'
-import { formatarData, OLHOS } from '@/utils/formato.js'
+import { OLHOS } from '@/utils/formato.js'
 
 /**
  * Procedimentos terapêuticos (RFPRO01).
  * Entidade própria, separada do módulo de exames: o que se registra aqui é
  * uma intervenção realizada, não uma medida obtida.
  */
-const props = defineProps({ consultaId: { type: String, default: null } })
-
 const prontuario = useProntuarioStore()
 const catalogos = useCatalogosStore()
 const toast = useToast()
 
 const dialogo = ref(false)
 const salvando = ref(false)
+const corrigindo = ref(null)
 const form = ref(null)
 
 const OPCOES_OLHO = OLHOS.map((o) => ({ label: o.value, value: o.value }))
 
-function abrir() {
+const registros = computed(() => prontuario.vigentes('procedimentos'))
+
+const selecionado = computed(() =>
+  catalogos.procedimentos.find((p) => p.id === form.value?.procedimentoId))
+
+function novo() {
+  corrigindo.value = null
   form.value = {
     procedimentoId: null,
     olho: 'OD',
     data: new Date(),
     descricao: '',
     intercorrencias: '',
+    motivo: '',
   }
   dialogo.value = true
 }
 
-const selecionado = computed(() =>
-  catalogos.procedimentos.find((p) => p.id === form.value?.procedimentoId))
+function corrigir(registro) {
+  corrigindo.value = registro
+  form.value = {
+    procedimentoId: registro.procedimentoId,
+    olho: registro.olho,
+    data: new Date(registro.data),
+    descricao: registro.descricao ?? '',
+    intercorrencias: registro.intercorrencias ?? '',
+    motivo: '',
+  }
+  dialogo.value = true
+}
 
 async function salvar() {
   if (!selecionado.value) return
   salvando.value = true
   try {
-    await prontuario.salvarProcedimento({
-      consultaId: props.consultaId,
+    const payload = {
       procedimentoId: selecionado.value.id,
       nome: selecionado.value.nome,
       categoria: selecionado.value.categoria,
       olho: form.value.olho,
-      data: form.value.data.toISOString(),
       descricao: form.value.descricao,
       intercorrencias: form.value.intercorrencias,
       responsavelId: 'med-1',
-    })
+    }
+    if (corrigindo.value) {
+      await prontuario.corrigirProcedimento(corrigindo.value.id, { ...payload, motivoCorrecao: form.value.motivo })
+      toast.add({ severity: 'success', summary: 'Procedimento corrigido', life: 2500 })
+    } else {
+      await prontuario.salvarProcedimento({ ...payload, data: form.value.data.toISOString() })
+      toast.add({ severity: 'success', summary: 'Procedimento registrado', detail: selecionado.value.nome, life: 2500 })
+    }
     dialogo.value = false
-    toast.add({ severity: 'success', summary: 'Procedimento registrado', detail: selecionado.value.nome, life: 2500 })
   } finally {
     salvando.value = false
   }
@@ -71,44 +92,56 @@ async function salvar() {
 <template>
   <div class="ob-stack">
     <div class="barra">
-      <span class="ob-muted ob-small">{{ prontuario.procedimentos.length }} procedimento(s)</span>
+      <span class="ob-muted ob-small">{{ registros.length }} procedimento(s)</span>
       <span class="ob-spacer" />
-      <Button label="Registrar procedimento" icon="pi pi-plus" @click="abrir" />
+      <Button label="Registrar procedimento" icon="pi pi-plus" @click="novo" />
     </div>
 
     <EmptyState
-      v-if="!prontuario.procedimentos.length"
+      v-if="!registros.length"
       icone="pi-bolt"
       titulo="Nenhum procedimento registrado"
       descricao="Laser, injeções intravítreas e demais intervenções terapêuticas aparecem aqui."
     />
 
-    <Card v-for="p in prontuario.procedimentos" :key="p.id">
-      <template #title>
-        <div class="proc__cab">
-          <i class="pi pi-bolt" />
-          <span class="proc__nome">{{ p.nome }}</span>
-          <EyeBadge :olho="p.olho" />
-          <span class="ob-spacer" />
-          <span class="ob-small ob-muted">{{ formatarData(p.data) }}</span>
-        </div>
-      </template>
-      <template #subtitle>
-        <span class="ob-small ob-muted">
-          {{ p.categoria }} · {{ catalogos.medico(p.responsavelId)?.nome }}
-        </span>
-      </template>
-      <template #content>
-        <dl class="registro">
+    <RegistroCard
+      v-for="p in registros"
+      :key="p.id"
+      :registro="p"
+      :versoes="prontuario.versoes('procedimentos', p)"
+      icone="pi-bolt"
+      @corrigir="corrigir"
+    >
+      <template #titulo>{{ p.nome }}</template>
+      <template #marcadores><EyeBadge :olho="p.olho" /></template>
+      <template #resumo>{{ p.categoria }} · {{ catalogos.medico(p.responsavelId)?.nome }}</template>
+
+      <dl class="leitura">
+        <dt>Descrição</dt>
+        <dd>{{ p.descricao || '—' }}</dd>
+        <dt>Intercorrências</dt>
+        <dd>{{ p.intercorrencias || 'Sem intercorrências' }}</dd>
+      </dl>
+
+      <template #versao="{ versao }">
+        <dl class="leitura">
+          <dt>Procedimento</dt>
+          <dd>{{ versao.nome }} ({{ versao.olho }})</dd>
           <dt>Descrição</dt>
-          <dd>{{ p.descricao || '—' }}</dd>
+          <dd>{{ versao.descricao || '—' }}</dd>
           <dt>Intercorrências</dt>
-          <dd>{{ p.intercorrencias || 'Sem intercorrências' }}</dd>
+          <dd>{{ versao.intercorrencias || 'Sem intercorrências' }}</dd>
         </dl>
       </template>
-    </Card>
+    </RegistroCard>
 
-    <Dialog v-model:visible="dialogo" modal header="Registrar procedimento" :style="{ width: '620px' }">
+    <Dialog
+      v-model:visible="dialogo"
+      modal
+      :header="corrigindo ? 'Corrigir procedimento' : 'Registrar procedimento'"
+      :style="{ width: '620px' }"
+      :breakpoints="{ '680px': '95vw' }"
+    >
       <div v-if="form" class="form">
         <div class="campo campo--full">
           <label for="proc-tipo">Procedimento</label>
@@ -133,7 +166,7 @@ async function salvar() {
         </div>
         <div class="campo">
           <label for="proc-data">Data</label>
-          <DatePicker id="proc-data" v-model="form.data" date-format="dd/mm/yy" show-icon fluid />
+          <DatePicker id="proc-data" v-model="form.data" date-format="dd/mm/yy" show-icon :disabled="Boolean(corrigindo)" fluid />
         </div>
         <div class="campo campo--full">
           <label for="proc-desc">Descrição técnica</label>
@@ -145,10 +178,20 @@ async function salvar() {
           <Textarea id="proc-inter" v-model="form.intercorrencias" rows="2" auto-resize fluid
             placeholder="Deixe em branco se não houve intercorrências" />
         </div>
+        <div v-if="corrigindo" class="campo campo--full">
+          <label for="proc-motivo">Motivo da correção</label>
+          <InputText id="proc-motivo" v-model="form.motivo" placeholder="Ex: olho trocado no lançamento" fluid />
+        </div>
       </div>
       <template #footer>
         <Button label="Cancelar" text @click="dialogo = false" />
-        <Button label="Salvar" icon="pi pi-check" :loading="salvando" :disabled="!selecionado" @click="salvar" />
+        <Button
+          :label="corrigindo ? 'Salvar correção' : 'Salvar'"
+          icon="pi pi-check"
+          :loading="salvando"
+          :disabled="!selecionado"
+          @click="salvar"
+        />
       </template>
     </Dialog>
   </div>
@@ -157,19 +200,15 @@ async function salvar() {
 <style scoped>
 .barra { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
 
-.proc__cab { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
-.proc__cab > .pi { color: var(--p-primary-500); }
-.proc__nome { font-size: 1rem; }
-
-.registro {
+.leitura {
   display: grid;
   grid-template-columns: minmax(130px, max-content) 1fr;
   gap: 0.3rem 1rem;
   margin: 0;
   font-size: 0.875rem;
 }
-.registro dt { color: var(--p-text-muted-color); }
-.registro dd { margin: 0; }
+.leitura dt { color: var(--p-text-muted-color); }
+.leitura dd { margin: 0; }
 
 .form { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem 1rem; }
 .campo { display: flex; flex-direction: column; gap: 0.3rem; }
@@ -178,6 +217,6 @@ async function salvar() {
 
 @media (max-width: 640px) {
   .form { grid-template-columns: 1fr; }
-  .registro { grid-template-columns: 1fr; }
+  .leitura { grid-template-columns: 1fr; }
 }
 </style>

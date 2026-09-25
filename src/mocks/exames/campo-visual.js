@@ -13,7 +13,6 @@ export default {
   destaque: true,
   descricao: 'Perimetria automatizada para avaliação do campo visual.',
   resumo: (d) => `${d.protocolo || '24-2'} · MD OD ${d.od?.md ?? '—'} / OE ${d.oe?.md ?? '—'} dB`,
-  grafico: { serie: (d) => ({ od: d.od?.md, oe: d.oe?.md }), unidade: 'dB', titulo: 'Desvio médio (MD)' },
   campos: [
     { key: 'protocolo', label: 'Protocolo', tipo: 'select', opcoes: ['24-2', '10-2', '30-2', '24-2C'], padrao: '24-2' },
     { key: 'estrategia', label: 'Estratégia', tipo: 'select', opcoes: ['SITA Standard', 'SITA Fast', 'SITA Faster', 'Full Threshold'], padrao: 'SITA Standard' },

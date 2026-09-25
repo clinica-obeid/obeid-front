@@ -1,22 +1,21 @@
 <script setup>
 import { computed, ref } from 'vue'
-import Card from 'primevue/card'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
 import Tag from 'primevue/tag'
 import Message from 'primevue/message'
+import InputText from 'primevue/inputtext'
 import { useToast } from 'primevue/usetoast'
 import EmptyState from '@/components/common/EmptyState.vue'
+import RegistroCard from '@/components/prontuario/RegistroCard.vue'
 import ReceitaOculosForm from '@/components/prontuario/ReceitaOculosForm.vue'
 import ReceitaMedicamentosForm from '@/components/prontuario/ReceitaMedicamentosForm.vue'
 import AtestadoForm from '@/components/prontuario/AtestadoForm.vue'
 import { useProntuarioStore } from '@/stores/prontuario.js'
 import { usePacientesStore } from '@/stores/pacientes.js'
-import { formatarData, formatarGrau } from '@/utils/formato.js'
+import { formatarGrau } from '@/utils/formato.js'
 
 /** Prescrições: óculos (RFPRE01), medicamentos (RFPRE02) e atestados (RFPRE03). */
-const props = defineProps({ consultaId: { type: String, default: null } })
-
 const prontuario = useProntuarioStore()
 const pacientes = usePacientesStore()
 const toast = useToast()
@@ -29,16 +28,28 @@ const TIPOS = {
 
 const dialogo = ref(false)
 const tipo = ref(null)
+const corrigindo = ref(null)
+const motivo = ref('')
 const salvando = ref(false)
 const formulario = ref(null)
 
-/** Última refração registrada — pré-preenche a receita de óculos (RNFUSA02). */
-const ultimaRefracao = computed(() => prontuario.ultimoExame('refracao'))
+const registros = computed(() => prontuario.vigentes('prescricoes'))
 
+/** Última refração em vigor — pré-preenche a receita de óculos (RNFUSA02). */
+const ultimaRefracao = computed(() => prontuario.ultimoExame('refracao'))
 const alergias = computed(() => pacientes.atual?.alergias ?? [])
 
 function abrir(qual) {
+  corrigindo.value = null
+  motivo.value = ''
   tipo.value = qual
+  dialogo.value = true
+}
+
+function corrigir(registro) {
+  corrigindo.value = registro
+  motivo.value = ''
+  tipo.value = registro.tipo
   dialogo.value = true
 }
 
@@ -47,14 +58,14 @@ async function salvar() {
   if (!dados) return
   salvando.value = true
   try {
-    await prontuario.salvarPrescricao({
-      consultaId: props.consultaId,
-      tipo: tipo.value,
-      dados,
-      responsavelId: 'med-1',
-    })
+    if (corrigindo.value) {
+      await prontuario.corrigirPrescricao(corrigindo.value.id, { dados, motivoCorrecao: motivo.value })
+      toast.add({ severity: 'success', summary: `${TIPOS[tipo.value].rotulo} corrigida`, life: 2500 })
+    } else {
+      await prontuario.salvarPrescricao({ tipo: tipo.value, dados, responsavelId: 'med-1' })
+      toast.add({ severity: 'success', summary: `${TIPOS[tipo.value].rotulo} emitida`, life: 2500 })
+    }
     dialogo.value = false
-    toast.add({ severity: 'success', summary: `${TIPOS[tipo.value].rotulo} emitida`, life: 2500 })
   } finally {
     salvando.value = false
   }
@@ -74,56 +85,72 @@ function resumo(p) {
 <template>
   <div class="ob-stack">
     <div class="barra">
-      <span class="ob-muted ob-small">{{ prontuario.prescricoes.length }} documento(s) emitido(s)</span>
+      <span class="ob-muted ob-small">{{ registros.length }} documento(s) emitido(s)</span>
       <span class="ob-spacer" />
       <Button
         v-for="(t, chave) in TIPOS"
         :key="chave"
         :label="t.rotulo"
         :icon="`pi ${t.icone}`"
-        :outlined="chave !== 'oculos'"
+        outlined
         @click="abrir(chave)"
       />
     </div>
 
     <EmptyState
-      v-if="!prontuario.prescricoes.length"
+      v-if="!registros.length"
       icone="pi-file-edit"
       titulo="Nenhum documento emitido"
       descricao="Receitas de óculos, de medicamentos e atestados ficam registrados aqui."
     />
 
-    <Card v-for="p in prontuario.prescricoes" :key="p.id">
-      <template #title>
-        <div class="doc__cab">
-          <i class="pi" :class="TIPOS[p.tipo].icone" />
-          <span class="doc__titulo">{{ TIPOS[p.tipo].rotulo }}</span>
-          <span class="ob-spacer" />
-          <span class="ob-small ob-muted">{{ formatarData(p.data) }}</span>
-          <RouterLink :to="{ name: 'impressao', params: { prescricaoId: p.id } }" target="_blank">
-            <Button label="Imprimir" icon="pi pi-print" size="small" text />
-          </RouterLink>
-        </div>
+    <RegistroCard
+      v-for="p in registros"
+      :key="p.id"
+      :registro="p"
+      :versoes="prontuario.versoes('prescricoes', p)"
+      :icone="TIPOS[p.tipo].icone"
+      @corrigir="corrigir"
+    >
+      <template #titulo>{{ TIPOS[p.tipo].rotulo }}</template>
+      <template #marcadores>
+        <!--
+          O botão é o próprio link. Envolvê-lo num RouterLink produziria um
+          <button> dentro de <a> — HTML inválido, e o Chrome não segue o link
+          quando o clique nasce no botão.
+        -->
+        <Button
+          as="router-link"
+          :to="{ name: 'impressao', params: { prescricaoId: p.id } }"
+          target="_blank"
+          label="Imprimir"
+          icon="pi pi-print"
+          size="small"
+          text
+        />
       </template>
-      <template #content>
-        <p class="doc__resumo">{{ resumo(p) }}</p>
 
-        <div v-if="p.tipo === 'medicamentos'" class="doc__itens">
-          <div v-for="(item, i) in p.dados.itens" :key="i" class="doc__item">
-            <Tag :value="item.olho" severity="secondary" />
-            <span><strong>{{ item.medicamento }}</strong> — {{ item.posologia }} ({{ item.duracao }})</span>
-          </div>
+      <p class="doc__resumo">{{ resumo(p) }}</p>
+
+      <div v-if="p.tipo === 'medicamentos'" class="doc__itens">
+        <div v-for="(item, i) in p.dados.itens" :key="i" class="doc__item">
+          <Tag :value="item.olho" severity="secondary" />
+          <span><strong>{{ item.medicamento }}</strong> — {{ item.posologia }} ({{ item.duracao }})</span>
         </div>
+      </div>
 
-        <p v-if="p.dados.orientacoes" class="ob-small ob-muted doc__obs">{{ p.dados.orientacoes }}</p>
-        <p v-if="p.dados.observacoes" class="ob-small ob-muted doc__obs">{{ p.dados.observacoes }}</p>
+      <p v-if="p.dados.orientacoes" class="ob-small ob-muted doc__obs">{{ p.dados.orientacoes }}</p>
+      <p v-if="p.dados.observacoes" class="ob-small ob-muted doc__obs">{{ p.dados.observacoes }}</p>
+
+      <template #versao="{ versao }">
+        <p class="doc__resumo">{{ resumo(versao) }}</p>
       </template>
-    </Card>
+    </RegistroCard>
 
     <Dialog
       v-model:visible="dialogo"
       modal
-      :header="tipo ? TIPOS[tipo].rotulo : ''"
+      :header="tipo ? `${corrigindo ? 'Corrigir' : ''} ${TIPOS[tipo].rotulo}`.trim() : ''"
       :style="{ width: '760px' }"
       :breakpoints="{ '840px': '95vw' }"
     >
@@ -137,11 +164,22 @@ function resumo(p) {
         v-if="tipo"
         ref="formulario"
         :ultima-refracao="ultimaRefracao"
+        :valor-inicial="corrigindo?.dados ?? null"
       />
+
+      <div v-if="corrigindo" class="campo">
+        <label for="pre-motivo">Motivo da correção</label>
+        <InputText id="pre-motivo" v-model="motivo" placeholder="Ex: grau digitado no olho trocado" fluid />
+      </div>
 
       <template #footer>
         <Button label="Cancelar" text @click="dialogo = false" />
-        <Button label="Emitir documento" icon="pi pi-check" :loading="salvando" @click="salvar" />
+        <Button
+          :label="corrigindo ? 'Salvar correção' : 'Emitir documento'"
+          icon="pi pi-check"
+          :loading="salvando"
+          @click="salvar"
+        />
       </template>
     </Dialog>
   </div>
@@ -150,12 +188,12 @@ function resumo(p) {
 <style scoped>
 .barra { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 
-.doc__cab { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
-.doc__cab > .pi { color: var(--p-primary-500); }
-.doc__titulo { font-size: 1rem; }
 .doc__resumo { margin: 0; font-size: 0.875rem; font-variant-numeric: tabular-nums; }
 .doc__itens { display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.5rem; }
 .doc__item { display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; }
 .doc__obs { margin: 0.5rem 0 0; }
+
 .alerta { margin-bottom: 0.75rem; }
+.campo { display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.85rem; }
+.campo label { font-size: 0.8125rem; font-weight: 600; }
 </style>

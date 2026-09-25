@@ -6,17 +6,21 @@ import Textarea from 'primevue/textarea'
 import Checkbox from 'primevue/checkbox'
 import AutoComplete from 'primevue/autocomplete'
 import { api } from '@/services/api.js'
+import { clonarDados } from '@/utils/formato.js'
 
 /** Atestado médico (RFPRE03). */
 const FINALIDADES = ['Afastamento', 'Comparecimento', 'Aptidão visual', 'Acompanhante']
 
-const form = ref({
-  finalidade: 'Afastamento',
-  dias: 1,
-  incluirCid: false,
-  cid: null,
-  texto: '',
+const props = defineProps({
+  /** Valores de um atestado em correção. */
+  valorInicial: { type: Object, default: null },
 })
+
+const form = ref(
+  props.valorInicial
+    ? clonarDados(props.valorInicial)
+    : { finalidade: 'Afastamento', dias: 1, incluirCid: false, cid: null, texto: '' },
+)
 
 const sugestoes = ref([])
 async function buscarCid({ query }) {
@@ -41,7 +45,13 @@ function gerarTexto() {
   return 'Atesto para os devidos fins que o(a) acompanhante esteve presente durante a consulta oftalmológica nesta data.'
 }
 
-watch(() => [form.value.finalidade, form.value.dias], () => { form.value.texto = gerarTexto() }, { immediate: true })
+// Ao corrigir, o texto já veio do documento emitido: só voltamos a gerá-lo
+// quando a finalidade ou os dias mudarem de fato.
+watch(
+  () => [form.value.finalidade, form.value.dias],
+  () => { form.value.texto = gerarTexto() },
+  { immediate: !props.valorInicial },
+)
 
 defineExpose({
   coletar: () => ({

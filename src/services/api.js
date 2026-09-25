@@ -26,13 +26,6 @@ export const api = {
     update: (id, alteracoes) => http.patch(`/pacientes/${id}`, alteracoes).then(dados),
   },
 
-  consultas: {
-    listByPaciente: (pacienteId) => http.get(`/pacientes/${pacienteId}/consultas`).then(dados),
-    get: (id) => http.get(`/consultas/${id}`).then(dados),
-    create: (consulta) => http.post('/consultas', consulta).then(dados),
-    update: (id, alteracoes) => http.patch(`/consultas/${id}`, alteracoes).then(dados),
-  },
-
   anamneses: recurso('anamneses'),
   exames: recurso('exames'),
   procedimentos: recurso('procedimentos'),
@@ -40,7 +33,6 @@ export const api = {
   prescricoes: recurso('prescricoes'),
 
   prontuario: {
-    timeline: (pacienteId) => http.get(`/pacientes/${pacienteId}/timeline`).then(dados),
     acessos: (pacienteId) => http.get(`/pacientes/${pacienteId}/acessos`).then(dados),
     registrarAcesso: (acesso) => http.post('/acessos', acesso).then(dados),
   },
@@ -59,6 +51,7 @@ function recurso(caminho) {
     get: (id) => http.get(`/${caminho}/${id}`).then(dados),
     create: (registro) => http.post(`/${caminho}`, registro).then(dados),
     update: (id, alteracoes) => http.patch(`/${caminho}/${id}`, alteracoes).then(dados),
-    remove: (id) => http.del(`/${caminho}/${id}`).then(dados),
+    /** Cria uma versão nova que substitui `id`, preservando a anterior. */
+    corrigir: (id, registro) => http.post(`/${caminho}/${id}/correcao`, registro).then(dados),
   }
 }

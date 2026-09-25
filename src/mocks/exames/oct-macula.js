@@ -14,11 +14,6 @@ export default {
   descricao: 'Tomografia de coerência óptica do segmento posterior.',
   resumo: (d) =>
     `Espessura central OD ${d.od?.espessuraCentral ?? '—'} / OE ${d.oe?.espessuraCentral ?? '—'} µm`,
-  grafico: {
-    serie: (d) => ({ od: d.od?.espessuraCentral, oe: d.oe?.espessuraCentral }),
-    unidade: 'µm',
-    titulo: 'Espessura macular central',
-  },
   campos: [
     { key: 'equipamento', label: 'Equipamento', tipo: 'select', opcoes: ['Spectralis', 'Cirrus', 'Triton', 'Outro'] },
     { key: 'protocolo', label: 'Protocolo', tipo: 'select', opcoes: ['Macular Cube 512x128', 'Radial', 'Posterior Pole', 'RNFL peripapilar'] },

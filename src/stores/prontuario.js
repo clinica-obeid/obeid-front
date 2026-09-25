@@ -4,11 +4,14 @@ import { api } from '@/services/api.js'
 
 /**
  * Estado clínico do paciente aberto no prontuário.
- * As coleções são carregadas sob demanda e invalidadas ao trocar de paciente.
+ *
+ * As coleções guardam **todas** as versões de cada registro. Uma correção não
+ * substitui nada em memória: ela acrescenta a versão nova e marca a anterior
+ * com `corrigidoPorId`. As telas listam `vigentes()` e abrem `versoes()`
+ * quando alguém quer ver o que foi corrigido.
  */
 export const useProntuarioStore = defineStore('prontuario', () => {
   const pacienteId = ref(null)
-  const timeline = ref([])
   const anamneses = ref([])
   const exames = ref([])
   const procedimentos = ref([])
@@ -17,24 +20,20 @@ export const useProntuarioStore = defineStore('prontuario', () => {
   const acessos = ref([])
   const carregando = ref(false)
 
+  const COLECOES = { anamneses, exames, procedimentos, diagnosticos, prescricoes }
+
   function limpar() {
-    timeline.value = []
-    anamneses.value = []
-    exames.value = []
-    procedimentos.value = []
-    diagnosticos.value = []
-    prescricoes.value = []
+    for (const lista of Object.values(COLECOES)) lista.value = []
     acessos.value = []
   }
 
   async function carregar(id, { forcar = false } = {}) {
-    if (pacienteId.value === id && !forcar && timeline.value.length) return
+    if (pacienteId.value === id && !forcar && exames.value.length) return
     pacienteId.value = id
     limpar()
     carregando.value = true
     try {
-      const [tl, ana, exa, pro, dia, pre, acs] = await Promise.all([
-        api.prontuario.timeline(id),
+      const [ana, exa, pro, dia, pre, acs] = await Promise.all([
         api.anamneses.listByPaciente(id),
         api.exames.listByPaciente(id),
         api.procedimentos.listByPaciente(id),
@@ -42,7 +41,6 @@ export const useProntuarioStore = defineStore('prontuario', () => {
         api.prescricoes.listByPaciente(id),
         api.prontuario.acessos(id),
       ])
-      timeline.value = tl
       anamneses.value = ana
       exames.value = exa
       procedimentos.value = pro
@@ -54,67 +52,75 @@ export const useProntuarioStore = defineStore('prontuario', () => {
     }
   }
 
-  /** Cria um registro clínico e recarrega a timeline, mantendo tudo coerente. */
-  function criador(recurso, colecao) {
+  /** Registros em vigor: os que ainda não foram substituídos por uma correção. */
+  function vigentes(nome) {
+    return (COLECOES[nome]?.value ?? [])
+      .filter((r) => !r.corrigidoPorId)
+      .sort((a, b) => new Date(b.data) - new Date(a.data))
+  }
+
+  /**
+   * Versões substituídas de um registro, da mais recente para a mais antiga.
+   * Percorre a cadeia `corrigeId` para trás.
+   */
+  function versoes(nome, registro) {
+    const todos = COLECOES[nome]?.value ?? []
+    const anteriores = []
+    let atual = registro
+    while (atual?.corrigeId) {
+      atual = todos.find((r) => r.id === atual.corrigeId)
+      if (!atual) break
+      anteriores.push(atual)
+    }
+    return anteriores
+  }
+
+  /** Cria um registro novo na coleção. */
+  function criador(nome) {
     return async (registro) => {
-      const criado = await api[recurso].create({ ...registro, pacienteId: pacienteId.value })
-      colecao.value = [criado, ...colecao.value]
-      timeline.value = await api.prontuario.timeline(pacienteId.value)
+      const criado = await api[nome].create({ ...registro, pacienteId: pacienteId.value })
+      COLECOES[nome].value = [criado, ...COLECOES[nome].value]
       return criado
     }
   }
 
-  const salvarAnamnese = criador('anamneses', anamneses)
-  const salvarExame = criador('exames', exames)
-  const salvarProcedimento = criador('procedimentos', procedimentos)
-  const salvarDiagnostico = criador('diagnosticos', diagnosticos)
-  const salvarPrescricao = criador('prescricoes', prescricoes)
-
   /**
-   * Abre um novo atendimento para o paciente.
-   * Sem agenda, a consulta nasce aqui: é o contêiner que agrupa o que for
-   * registrado nesta visita e a entrada correspondente na linha do tempo.
+   * Corrige um registro: grava a versão nova e marca a anterior como
+   * substituída, sem remover nada da coleção.
    */
-  async function iniciarConsulta(dados) {
-    const consulta = await api.consultas.create({
-      ...dados,
-      pacienteId: pacienteId.value,
-      data: new Date().toISOString(),
-    })
-    timeline.value = await api.prontuario.timeline(pacienteId.value)
-    return consulta
+  function corretor(nome) {
+    return async (id, registro) => {
+      const nova = await api[nome].corrigir(id, registro)
+      COLECOES[nome].value = [
+        nova,
+        ...COLECOES[nome].value.map((r) => (r.id === id ? { ...r, corrigidoPorId: nova.id } : r)),
+      ]
+      return nova
+    }
   }
 
-  /** Encerra o atendimento, congelando o momento em que ele terminou. */
-  async function encerrarConsulta(id) {
-    const consulta = await api.consultas.update(id, { encerradaEm: new Date().toISOString() })
-    timeline.value = await api.prontuario.timeline(pacienteId.value)
-    return consulta
-  }
+  const salvarAnamnese = criador('anamneses')
+  const salvarExame = criador('exames')
+  const salvarProcedimento = criador('procedimentos')
+  const salvarDiagnostico = criador('diagnosticos')
+  const salvarPrescricao = criador('prescricoes')
 
-  async function removerExame(id) {
-    await api.exames.remove(id)
-    exames.value = exames.value.filter((e) => e.id !== id)
-    timeline.value = await api.prontuario.timeline(pacienteId.value)
-  }
+  const corrigirAnamnese = corretor('anamneses')
+  const corrigirExame = corretor('exames')
+  const corrigirProcedimento = corretor('procedimentos')
+  const corrigirDiagnostico = corretor('diagnosticos')
+  const corrigirPrescricao = corretor('prescricoes')
 
-  /** Série temporal de um tipo de exame, para os gráficos de acompanhamento. */
-  function serie(tipo) {
-    return exames.value
-      .filter((e) => e.tipo === tipo)
-      .sort((a, b) => new Date(a.data) - new Date(b.data))
-  }
-
-  /** Último exame registrado de um tipo — usado para pré-preencher receitas. */
+  /** Último exame em vigor de um tipo — usado para pré-preencher receitas. */
   function ultimoExame(tipo) {
-    return serie(tipo).at(-1) ?? null
+    return vigentes('exames').find((e) => e.tipo === tipo) ?? null
   }
 
   return {
-    pacienteId, timeline, anamneses, exames, procedimentos, diagnosticos,
-    prescricoes, acessos, carregando,
-    carregar, limpar, serie, ultimoExame, removerExame,
-    iniciarConsulta, encerrarConsulta,
+    pacienteId, anamneses, exames, procedimentos, diagnosticos, prescricoes,
+    acessos, carregando,
+    carregar, limpar, vigentes, versoes, ultimoExame,
     salvarAnamnese, salvarExame, salvarProcedimento, salvarDiagnostico, salvarPrescricao,
+    corrigirAnamnese, corrigirExame, corrigirProcedimento, corrigirDiagnostico, corrigirPrescricao,
   }
 })

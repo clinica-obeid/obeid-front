@@ -12,7 +12,7 @@ import { criarEstadoInicial } from './seed.js'
 
 // A versão faz parte da chave: mudanças no formato do seed invalidam o estado
 // guardado, em vez de misturar registros antigos com o novo esquema.
-const CHAVE = 'obeid.db.v3'
+const CHAVE = 'obeid.db.v6'
 
 /** @type {Record<string, Array<Object>>} */
 let estado = carregar()

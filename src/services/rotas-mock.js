@@ -14,12 +14,6 @@ const porPaciente = (nome, pacienteId) =>
 
 const maisRecentePrimeiro = (a, b) => new Date(b.data) - new Date(a.data)
 
-/** Dia do calendário local de um timestamp. */
-function diaLocal(iso) {
-  const d = new Date(iso)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
 // ---------------------------------------------------------------- pacientes
 rota('GET', '/pacientes', ({ query }) => {
   const busca = (query.get('busca') ?? '').trim().toLowerCase()
@@ -44,25 +38,6 @@ rota('POST', '/pacientes', ({ body }) =>
 rota('PATCH', '/pacientes/:id', ({ params, body }) =>
   db.atualizar('pacientes', params.id, body))
 
-// -------------------------------------------------------------- consultas
-// A consulta é o atendimento em si: agrupa o que foi registrado no prontuário
-// numa mesma visita. Não há agendamento — ela nasce quando o atendimento começa.
-rota('GET', '/pacientes/:pacienteId/consultas', ({ params }) =>
-  porPaciente('consultas', params.pacienteId).sort(maisRecentePrimeiro))
-
-rota('GET', '/consultas/:id', ({ params }) =>
-  db.colecao('consultas').find((c) => c.id === params.id) ?? null)
-
-rota('POST', '/consultas', ({ body }) =>
-  db.inserir('consultas', {
-    ...body,
-    id: db.novoId('con'),
-    data: body.data ?? new Date().toISOString(),
-    criadoEm: new Date().toISOString(),
-  }))
-
-rota('PATCH', '/consultas/:id', ({ params, body }) => db.atualizar('consultas', params.id, body))
-
 // -------------------------------------------- coleções do prontuário (CRUD)
 /** Registra GET por paciente + POST para cada coleção clínica. */
 function recursoClinico(caminho, colecao, prefixoId) {
@@ -82,7 +57,30 @@ function recursoClinico(caminho, colecao, prefixoId) {
 
   rota('PATCH', `/${caminho}/:id`, ({ params, body }) => db.atualizar(colecao, params.id, body))
 
-  rota('DELETE', `/${caminho}/:id`, ({ params }) => ({ removido: db.remover(colecao, params.id) }))
+  /**
+   * Correção de um registro.
+   *
+   * Num prontuário nada se apaga: a correção grava uma versão nova, aponta
+   * para a que substitui e marca a anterior como substituída. A data clínica
+   * do registro é preservada — só o `criadoEm` marca quando a correção foi
+   * feita.
+   */
+  rota('POST', `/${caminho}/:id/correcao`, ({ params, body }) => {
+    const anterior = db.colecao(colecao).find((r) => r.id === params.id)
+    if (!anterior) return null
+
+    const nova = db.inserir(colecao, {
+      ...anterior,
+      ...body,
+      id: db.novoId(prefixoId),
+      data: anterior.data,
+      corrigeId: anterior.id,
+      corrigidoPorId: null,
+      criadoEm: new Date().toISOString(),
+    })
+    db.atualizar(colecao, anterior.id, { corrigidoPorId: nova.id })
+    return nova
+  })
 }
 
 recursoClinico('anamneses', 'anamneses', 'ana')
@@ -91,70 +89,12 @@ recursoClinico('procedimentos', 'procedimentos', 'pro')
 recursoClinico('diagnosticos', 'diagnosticos', 'dia')
 recursoClinico('prescricoes', 'prescricoes', 'pre')
 
-// ------------------------------------------------------- trilha LGPD e timeline
+// ------------------------------------------------------------ trilha LGPD
 rota('GET', '/pacientes/:pacienteId/acessos', ({ params }) =>
   porPaciente('acessos', params.pacienteId).sort(maisRecentePrimeiro))
 
 rota('POST', '/acessos', ({ body }) =>
   db.inserir('acessos', { ...body, id: db.novoId('acs'), data: new Date().toISOString() }))
-
-/**
- * Timeline consolidada do paciente (RFHIS01).
- * O agrupamento por consulta é feito aqui, no "servidor", para que a tela
- * receba os dados prontos — como aconteceria com uma API real.
- */
-rota('GET', '/pacientes/:pacienteId/timeline', ({ params }) => {
-  const { pacienteId } = params
-  const consultas = porPaciente('consultas', pacienteId)
-  const exames = porPaciente('exames', pacienteId)
-  const procedimentos = porPaciente('procedimentos', pacienteId)
-  const diagnosticos = porPaciente('diagnosticos', pacienteId)
-  const prescricoes = porPaciente('prescricoes', pacienteId)
-  const anamneses = porPaciente('anamneses', pacienteId)
-
-  const grupos = consultas.map((consulta) => ({
-    consulta,
-    anamnese: anamneses.find((a) => a.consultaId === consulta.id) ?? null,
-    exames: exames.filter((e) => e.consultaId === consulta.id),
-    procedimentos: procedimentos.filter((p) => p.consultaId === consulta.id),
-    diagnosticos: diagnosticos.filter((d) => d.consultaId === consulta.id),
-    prescricoes: prescricoes.filter((p) => p.consultaId === consulta.id),
-  }))
-
-  // Registros lançados fora de um atendimento (ex: um exame avulso)
-  // ainda pertencem ao histórico do paciente — agrupamos por dia.
-  const avulsos = {}
-  const agrupar = (lista, chave) => {
-    for (const registro of lista.filter((r) => !r.consultaId)) {
-      const d = diaLocal(registro.data)
-      avulsos[d] ??= { exames: [], procedimentos: [], diagnosticos: [], prescricoes: [], anamnese: null }
-      if (chave === 'anamnese') avulsos[d].anamnese ??= registro
-      else avulsos[d][chave].push(registro)
-    }
-  }
-  agrupar(anamneses, 'anamnese')
-  agrupar(exames, 'exames')
-  agrupar(procedimentos, 'procedimentos')
-  agrupar(diagnosticos, 'diagnosticos')
-  agrupar(prescricoes, 'prescricoes')
-
-  for (const [d, conteudo] of Object.entries(avulsos)) {
-    grupos.push({
-      ...conteudo,
-      consulta: {
-        id: `avulso-${d}`,
-        pacienteId,
-        data: `${d}T23:59:00`,
-        status: 'finalizado',
-        tipo: 'Registro avulso',
-        motivo: 'Lançado fora de um atendimento',
-        avulso: true,
-      },
-    })
-  }
-
-  return grupos.sort((a, b) => new Date(b.consulta.data) - new Date(a.consulta.data))
-})
 
 // ---------------------------------------------------------------- catálogos
 rota('GET', '/catalogos', () => ({

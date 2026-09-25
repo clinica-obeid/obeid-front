@@ -49,14 +49,14 @@ Para publicar atrás de um proxy em um subcaminho (ex: `/demo`), defina
 | Fluxo | Onde |
 |---|---|
 | Busca de paciente por nome, CPF ou telefone (atalho `/`) | qualquer tela |
-| Cadastro completo com convênio, comorbidades, alergias e consentimento LGPD | **Pacientes → Novo paciente** |
-| Atendimento guiado: anamnese → exames → diagnóstico → prescrição | **Prontuário → Novo atendimento** |
+| Cadastro com convênio e consentimento LGPD | **Pacientes → Novo paciente** |
+| Antecedentes: doenças oculares, comorbidades, cirurgias prévias e observações | **Prontuário → Antecedentes** |
+| Alergias, que alimentam o aviso do cabeçalho e o alerta da prescrição | **Prontuário → Alergias** |
+| Anamnese com os campos que o serviço escolher | **Prontuário → Anamnese** |
 | 16 tipos de exame, cada um com formulário próprio e lateralidade OD/OE/AO | **Prontuário → Exames** |
-| Evolução de PIO, campo visual e OCT ao longo do tempo | **Prontuário → Exames → Acompanhamento** |
 | Receita de óculos pré-preenchida pela última refração, receita de colírios, atestado | **Prontuário → Prescrições** |
 | Documento em A4 pronto para impressão | botão **Imprimir** em qualquer prescrição |
-| Linha do tempo com tudo o que já aconteceu com o paciente | **Prontuário → Histórico** |
-| Trilha de acessos ao prontuário (LGPD) | rodapé de **Prontuário → Histórico** |
+| **Correção de qualquer registro**, mantendo a versão anterior | botão **Corrigir** em qualquer cartão |
 
 O estado é salvo em `localStorage`: o que for criado durante a demonstração
 sobrevive ao *reload*. Para voltar ao ponto de partida, use
@@ -84,15 +84,17 @@ src/
 │   ├── rotas-mock.js  o "servidor" — único arquivo que conhece o formato do banco
 │   └── api.js         superfície consumida pelas telas
 ├── mocks/
-│   ├── db.js          coleções em memória + persistência
-│   ├── seed.js        estado inicial, com datas relativas a hoje
-│   └── exames/        um arquivo por tipo de exame + registry
+│   ├── db.js              coleções em memória + persistência
+│   ├── seed.js            estado inicial, com datas relativas a hoje
+│   ├── anamnese-campos.js catálogo de perguntas da anamnese
+│   └── exames/            um arquivo por tipo de exame + registry
 ├── stores/            Pinia: pacientes, prontuário, catálogos
-├── components/        layout, comuns, motor de exames, formulários clínicos
+├── components/        layout, comuns, motor de exames, cartão de registro
+│                      e formulários clínicos
 └── views/             telas e abas do prontuário
 ```
 
-### Duas decisões que sustentam o protótipo
+### Quatro decisões que sustentam o protótipo
 
 **1. Exames são dados, não código.** Cada tipo de exame é um *schema declarativo*
 em `src/mocks/exames/`, e um único componente — `ExameFormRenderer.vue` — monta o
@@ -120,7 +122,31 @@ export default {
 Um schema que declare `grafico` também ganha automaticamente um gráfico de
 evolução na aba Exames.
 
-**2. O mock está isolado atrás de uma API.** Nenhum componente importa `mocks/`.
+**2. Nada se apaga: registros são corrigidos.** Um lançamento errado não é
+removido nem sobrescrito. **Corrigir** grava uma versão nova que aponta para a
+que substitui (`corrigeId`), marca a anterior como substituída
+(`corrigidoPorId`) e preserva a data clínica — o exame foi feito quando foi
+feito; só o `criadoEm` marca quando a correção aconteceu. As listagens mostram
+a versão em vigor e revelam as anteriores sob demanda.
+
+As cinco coleções clínicas passam por três fábricas, então o recurso inteiro
+custou uma adição em cada uma: a rota `POST /{recurso}/:id/correcao` em
+`services/rotas-mock.js`, `corrigir()` em `services/api.js` e `corretor()` em
+`stores/prontuario.js`. Na tela, `components/prontuario/RegistroCard.vue` dá a
+mesma aparência e o mesmo comportamento às cinco abas.
+
+**3. A anamnese também é dirigida por dados.** `src/mocks/anamnese-campos.js`
+lista tudo que pode ser perguntado, e o formulário exibe o catálogo inteiro —
+acrescentar uma pergunta ao sistema é acrescentar um objeto ali.
+
+Na gravação entram só as perguntas respondidas: uma anamnese em que se preencheu
+duas grava duas, não treze. O registro reflete o que de fato foi perguntado, e é
+isso que a leitura mostra. Caixa de seleção desmarcada conta como não
+respondida — `false` é o valor inicial de quem nem olhou para a pergunta, não
+uma negativa registrada. Ao corrigir, o catálogo reaparece com os valores
+existentes, para que dê para acrescentar o que faltou.
+
+**4. O mock está isolado atrás de uma API.** Nenhum componente importa `mocks/`.
 Tudo passa por `services/api.js`, que hoje fala com um backend simulado que imita
 latência, códigos de status e o formato de resposta de uma API real. Trocar pelo
 backend de verdade é reescrever `api.js` sobre `fetch` e apagar `rotas-mock.js`.
@@ -136,15 +162,16 @@ VITE_MOCK_LATENCIA_MAX=1200
 ## Cobertura dos requisitos
 
 Todos os requisitos funcionais de `requirements.md` estão implementados e
-navegáveis: cadastro (RFCAD01–03), anamnese (RFANA01–02), os 16 exames com
-schema próprio, lateralidade e anexos (RFEXA01–18), procedimentos separados dos
-exames (RFPRO01), diagnóstico com CID-10 e conduta (RFDIA01–02), as três
-prescrições (RFPRE01–03) e a linha do tempo (RFHIS01).
+navegáveis: cadastro (RFCAD01), antecedentes (RFCAD02) e alergias (RFCAD03),
+anamnese (RFANA01–02), os 16 exames com schema próprio, lateralidade e anexos
+(RFEXA01–18), procedimentos separados dos exames (RFPRO01), diagnóstico com
+CID-10 e conduta (RFDIA01–02), as três prescrições (RFPRE01–03), a anamnese que
+grava só o que foi respondido (RFANA03) e a correção de registros (RFCOR01–04).
 
-Agendamento e acompanhamento do status do paciente no fluxo do consultório
-foram retirados do escopo. A *consulta* permanece como entidade — é o que
-agrupa os registros de uma mesma visita na linha do tempo —, mas ela nasce no
-próprio prontuário, ao iniciar um atendimento, e não numa agenda.
+Agendamento, fluxo de atendimento e linha do tempo foram retirados do escopo:
+o sistema é só o prontuário, e o uso consiste em acrescentar entradas na tela
+do paciente. Não existe entidade de consulta — cada registro é um lançamento
+autônomo, com a sua data e o seu responsável.
 
 Quanto aos não funcionais: Vue.js (RNFTEC01), dados mockados (RNFTEC02), API
 fantasma com latência e envelope reais (RNFTEC03), mock isolado atrás de uma
@@ -161,3 +188,5 @@ finalidade declarada e o prontuário mostra uma trilha de acessos.
 - Anexos ficam apenas na sessão do navegador (`URL.createObjectURL`), sem upload.
 - O catálogo CID-10 é um subconjunto oftalmológico, não a tabela completa.
 - Nenhuma validação clínica: o protótipo aceita qualquer valor nos campos.
+- A correção não tem assinatura digital nem carimbo de tempo confiável — a
+  rastreabilidade é apenas estrutural.

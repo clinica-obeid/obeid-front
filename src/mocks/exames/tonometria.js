@@ -13,7 +13,6 @@ export default {
   destaque: true,
   descricao: 'Aferição da pressão intraocular.',
   resumo: (d) => `PIO OD ${d.od?.pio ?? '—'} / OE ${d.oe?.pio ?? '—'} mmHg`,
-  grafico: { serie: (d) => ({ od: d.od?.pio, oe: d.oe?.pio }), unidade: 'mmHg', titulo: 'PIO' },
   campos: [
     { key: 'pio', label: 'PIO', tipo: 'number', porOlho: true, sufixo: 'mmHg', passo: 1, min: 0, max: 80 },
     {

@@ -13,7 +13,7 @@ const BASE = {
   endereco: { cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: 'São Paulo', uf: 'SP' },
   convenio: { nome: 'Particular', plano: '', carteirinha: '', validade: '' },
   emergencia: { nome: '', parentesco: '', telefone: '' },
-  historico: { doencasOculares: [], comorbidades: [], cirurgiasOculares: [], medicamentosEmUso: [] },
+  historico: { doencasOculares: [], comorbidades: [], cirurgiasOculares: [] },
   alergias: [],
   lgpd: { consentimento: true, dataConsentimento: '2024-03-01', finalidade: 'Assistência à saúde' },
   observacoes: '',
@@ -51,7 +51,6 @@ const GRUPO_1 = [
       doencasOculares: ['Glaucoma', 'Catarata'],
       comorbidades: ['Hipertensão arterial sistêmica', 'Diabetes mellitus tipo 2'],
       cirurgiasOculares: ['Facectomia com implante de LIO — OD (2019)'],
-      medicamentosEmUso: ['Latanoprosta 0,005% colírio', 'Losartana 50 mg', 'Metformina 850 mg'],
     },
     alergias: [{ substancia: 'Sulfa', reacao: 'Urticária', gravidade: 'Moderada' }],
     observacoes: 'Paciente em acompanhamento de glaucoma primário de ângulo aberto há 6 anos.',
@@ -71,7 +70,6 @@ const GRUPO_1 = [
     historico: {
       doencasOculares: ['Retinopatia diabética'],
       comorbidades: ['Diabetes mellitus tipo 2', 'Dislipidemia', 'Tabagismo'],
-      medicamentosEmUso: ['Insulina NPH', 'Sinvastatina 20 mg'],
     },
     alergias: [],
     observacoes: 'Controle glicêmico irregular. Orientado sobre risco de progressão.',
@@ -94,7 +92,6 @@ const GRUPO_2 = [
     historico: {
       doencasOculares: ['Ceratocone', 'Olho seco'],
       comorbidades: [],
-      medicamentosEmUso: ['Carmelose 0,5% colírio'],
     },
     alergias: [{ substancia: 'Dipirona', reacao: 'Angioedema', gravidade: 'Grave' }],
     observacoes: 'Ceratocone bilateral, uso de lentes de contato rígidas. Avaliar crosslinking em OE.',
@@ -114,7 +111,6 @@ const GRUPO_2 = [
     historico: {
       doencasOculares: ['Catarata', 'Degeneração macular relacionada à idade'],
       comorbidades: ['Hipertensão arterial sistêmica'],
-      medicamentosEmUso: ['Anlodipino 5 mg'],
     },
     alergias: [{ substancia: 'Penicilina', reacao: 'Exantema', gravidade: 'Leve' }],
     observacoes: 'Candidato a facectomia bilateral. Aguarda biometria.',
@@ -133,7 +129,6 @@ const GRUPO_2 = [
     historico: {
       doencasOculares: ['Ambliopia', 'Estrabismo'],
       comorbidades: [],
-      medicamentosEmUso: [],
     },
     alergias: [],
     observacoes: 'Paciente pediátrica. Tratamento com oclusão em OD.',
@@ -154,7 +149,6 @@ const GRUPO_3 = [
     historico: {
       doencasOculares: ['Olho seco'],
       comorbidades: ['Enxaqueca'],
-      medicamentosEmUso: ['Carmelose 0,5% colírio'],
     },
     observacoes: 'Queixa de fadiga visual associada a uso prolongado de tela.',
   }),
@@ -172,7 +166,6 @@ const GRUPO_3 = [
       doencasOculares: ['Glaucoma'],
       comorbidades: ['Hipertensão arterial sistêmica', 'Doença da tireoide'],
       cirurgiasOculares: ['Trabeculectomia — OE (2021)'],
-      medicamentosEmUso: ['Dorzolamida + Timolol colírio', 'Levotiroxina 75 mcg'],
     },
     alergias: [{ substancia: 'Anti-inflamatórios não esteroidais', reacao: 'Broncoespasmo', gravidade: 'Grave' }],
     observacoes: 'Glaucoma avançado em OE. Meta pressórica de 12 mmHg.',
@@ -187,7 +180,7 @@ const GRUPO_3 = [
     contato: { celular: '(11) 98290-3341', email: 'rodrigo.vilela@exemplo.com' },
     convenio: { nome: 'Particular' },
     emergencia: { nome: 'Marina Vilela', parentesco: 'Irmã', telefone: '(11) 98290-7712' },
-    historico: { doencasOculares: [], comorbidades: [], medicamentosEmUso: [] },
+    historico: { doencasOculares: [], comorbidades: [] },
     observacoes: 'Primeira consulta. Queixa de baixa acuidade visual para longe.',
   }),
   paciente({
@@ -203,7 +196,6 @@ const GRUPO_3 = [
     historico: {
       doencasOculares: ['Degeneração macular relacionada à idade'],
       comorbidades: ['Hipertensão arterial sistêmica', 'Dislipidemia'],
-      medicamentosEmUso: ['Rosuvastatina 10 mg'],
     },
     alergias: [{ substancia: 'Iodo / contraste', reacao: 'Prurido intenso', gravidade: 'Moderada' }],
     observacoes: 'DMRI exsudativa em OD, em regime de injeções intravítreas.',
@@ -221,7 +213,7 @@ const GRUPO_4 = [
     contato: { celular: '(11) 97001-8823' },
     convenio: { nome: 'SUS', carteirinha: '898 0044 1120 8890' },
     emergencia: { nome: 'Silvana Brandão', parentesco: 'Esposa', telefone: '(11) 97001-3345' },
-    historico: { doencasOculares: [], comorbidades: ['Tabagismo'], medicamentosEmUso: [] },
+    historico: { doencasOculares: [], comorbidades: ['Tabagismo'] },
     observacoes: 'Histórico de trauma ocupacional. Uso irregular de EPI.',
   }),
   paciente({
@@ -237,7 +229,6 @@ const GRUPO_4 = [
     historico: {
       doencasOculares: ['Uveíte'],
       comorbidades: ['Artrite reumatoide'],
-      medicamentosEmUso: ['Metotrexato 15 mg/semana', 'Prednisolona 1% colírio'],
     },
     alergias: [{ substancia: 'Látex', reacao: 'Dermatite de contato', gravidade: 'Leve' }],
     observacoes: 'Uveíte anterior recorrente associada a doença reumatológica.',
@@ -255,7 +246,6 @@ const GRUPO_4 = [
     historico: {
       doencasOculares: ['Glaucoma', 'Catarata'],
       comorbidades: ['Diabetes mellitus tipo 2', 'Apneia do sono'],
-      medicamentosEmUso: ['Brimonidina 0,2% colírio', 'Metformina 850 mg'],
     },
     observacoes: 'Suspeita de progressão glaucomatosa. Solicitada curva tensional.',
   }),

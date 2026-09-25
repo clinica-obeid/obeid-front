@@ -14,7 +14,11 @@ import { clonarDados, formatarData } from '@/utils/formato.js'
  * Campos de grau — esfera, cilindro, eixo, adição e DP — que não têm
  * equivalente numa receita médica comum, por isso o formulário é próprio.
  */
-const props = defineProps({ ultimaRefracao: { type: Object, default: null } })
+const props = defineProps({
+  ultimaRefracao: { type: Object, default: null },
+  /** Valores de uma prescrição em correção; têm prioridade sobre a refração. */
+  valorInicial: { type: Object, default: null },
+})
 
 const FINALIDADES = ['Uso constante', 'Para longe', 'Para perto', 'Bifocal', 'Multifocal', 'Para leitura']
 
@@ -41,14 +45,24 @@ function importarRefracao() {
   form.value.dp = d.dp ?? null
 }
 
-watch(() => props.ultimaRefracao, importarRefracao, { immediate: true })
+watch(
+  () => [props.valorInicial, props.ultimaRefracao],
+  () => {
+    if (props.valorInicial) form.value = clonarDados(props.valorInicial)
+    else importarRefracao()
+  },
+  { immediate: true },
+)
 
 defineExpose({ coletar: () => clonarDados(form.value) })
 </script>
 
 <template>
   <div class="ob-stack">
-    <Message v-if="ultimaRefracao" severity="info" :closable="false">
+    <Message v-if="valorInicial" severity="secondary" :closable="false">
+      Corrigindo um documento já emitido. A versão anterior continua registrada no prontuário.
+    </Message>
+    <Message v-else-if="ultimaRefracao" severity="info" :closable="false">
       <div class="ob-row-wrap">
         <span>
           Valores importados da refração de <strong>{{ formatarData(ultimaRefracao.data) }}</strong>.
@@ -56,7 +70,7 @@ defineExpose({ coletar: () => clonarDados(form.value) })
         <Button label="Reimportar" icon="pi pi-refresh" size="small" text @click="importarRefracao" />
       </div>
     </Message>
-    <Message v-else severity="warn" :closable="false">
+    <Message v-else-if="!valorInicial" severity="warn" :closable="false">
       Nenhuma refração registrada para este paciente — preencha os graus manualmente.
     </Message>
 

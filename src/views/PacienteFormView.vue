@@ -4,9 +4,7 @@ import { useRouter } from 'vue-router'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import InputMask from 'primevue/inputmask'
-import Textarea from 'primevue/textarea'
 import Select from 'primevue/select'
-import MultiSelect from 'primevue/multiselect'
 import DatePicker from 'primevue/datepicker'
 import Checkbox from 'primevue/checkbox'
 import Tabs from 'primevue/tabs'
@@ -21,7 +19,12 @@ import { usePacientesStore } from '@/stores/pacientes.js'
 import { useCatalogosStore } from '@/stores/catalogos.js'
 import { clonarDados, isoLocal } from '@/utils/formato.js'
 
-/** Cadastro de paciente — RFCAD01 (dados), RFCAD02 (histórico), RFCAD03 (alergias). */
+/**
+ * Cadastro do paciente (RFCAD01) e consentimento LGPD.
+ *
+ * Antecedentes clínicos (RFCAD02) e alergias (RFCAD03) vivem na tela do
+ * paciente, onde são consultados e atualizados durante o atendimento.
+ */
 const props = defineProps({ id: { type: String, default: null } })
 
 const router = useRouter()
@@ -40,7 +43,7 @@ const vazio = () => ({
   endereco: { cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', uf: '' },
   convenio: { nome: 'Particular', plano: '', carteirinha: '', validade: '' },
   emergencia: { nome: '', parentesco: '', telefone: '' },
-  historico: { doencasOculares: [], comorbidades: [], cirurgiasOculares: [], medicamentosEmUso: [] },
+  historico: { doencasOculares: [], comorbidades: [], cirurgiasOculares: [] },
   alergias: [],
   lgpd: { consentimento: false, dataConsentimento: null, finalidade: 'Assistência à saúde' },
   observacoes: '',
@@ -53,7 +56,7 @@ onMounted(async () => {
   if (!props.id) return
   const paciente = await pacientes.carregar(props.id)
   if (paciente) {
-    form.value = structuredClone(paciente)
+    form.value = clonarDados(paciente)
     if (form.value.dataNascimento) form.value.dataNascimento = new Date(`${form.value.dataNascimento}T00:00:00`)
   }
 })
@@ -61,33 +64,14 @@ onMounted(async () => {
 const SEXOS = ['Feminino', 'Masculino', 'Outro', 'Prefiro não informar']
 const ESTADOS_CIVIS = ['Solteiro(a)', 'Casado(a)', 'Divorciado(a)', 'Viúvo(a)', 'União estável', 'Não informado']
 const PARENTESCOS = ['Cônjuge', 'Filho(a)', 'Pai', 'Mãe', 'Irmão(ã)', 'Amigo(a)', 'Outro']
-const GRAVIDADES = ['Leve', 'Moderada', 'Grave']
 
 const nomeInvalido = computed(() => enviado.value && !form.value.nome.trim())
 const consentimentoInvalido = computed(() => enviado.value && !form.value.lgpd.consentimento)
 
-function adicionarAlergia() {
-  form.value.alergias.push({ substancia: '', reacao: '', gravidade: 'Moderada' })
-}
-
-function removerAlergia(i) {
-  form.value.alergias.splice(i, 1)
-}
-
-/** Converte listas livres digitadas em array (cirurgias, medicamentos). */
-function listaTexto(campo) {
-  return computed({
-    get: () => form.value.historico[campo].join('\n'),
-    set: (v) => { form.value.historico[campo] = v.split('\n').map((s) => s.trim()).filter(Boolean) },
-  })
-}
-const cirurgias = listaTexto('cirurgiasOculares')
-const medicamentos = listaTexto('medicamentosEmUso')
-
 async function salvar() {
   enviado.value = true
   if (!form.value.nome.trim()) { aba.value = '0'; return }
-  if (!form.value.lgpd.consentimento) { aba.value = '3'; return }
+  if (!form.value.lgpd.consentimento) { aba.value = '2'; return }
 
   const payload = clonarDados({
     ...form.value,
@@ -107,7 +91,7 @@ async function salvar() {
     detail: salvo.nome,
     life: 3000,
   })
-  router.push({ name: 'prontuario-timeline', params: { id: salvo.id } })
+  router.push({ name: 'prontuario-antecedentes', params: { id: salvo.id } })
 }
 </script>
 
@@ -128,8 +112,7 @@ async function salvar() {
       <TabList>
         <Tab value="0">Dados pessoais</Tab>
         <Tab value="1">Contato e convênio</Tab>
-        <Tab value="2">Histórico clínico</Tab>
-        <Tab value="3">Alergias e consentimento</Tab>
+        <Tab value="2">Consentimento</Tab>
       </TabList>
 
       <TabPanels>
@@ -255,77 +238,12 @@ async function salvar() {
           </div>
         </TabPanel>
 
-        <!-- RFCAD02 — histórico de doenças oculares e sistêmicas -->
+        <!-- Consentimento LGPD (RNFSEG01) -->
         <TabPanel value="2">
-          <div class="form">
-            <div class="campo campo--full">
-              <label for="doencas-oculares">Histórico de doenças oculares</label>
-              <MultiSelect
-                id="doencas-oculares"
-                v-model="form.historico.doencasOculares"
-                :options="catalogos.doencasOculares"
-                display="chip"
-                filter
-                placeholder="Selecione as condições"
-                fluid
-              />
-            </div>
-            <div class="campo campo--full">
-              <label for="comorbidades">Doenças sistêmicas / comorbidades</label>
-              <MultiSelect
-                id="comorbidades"
-                v-model="form.historico.comorbidades"
-                :options="catalogos.comorbidades"
-                display="chip"
-                filter
-                placeholder="Ex: diabetes, hipertensão"
-                fluid
-              />
-            </div>
-            <div class="campo campo--full">
-              <label for="cirurgias">Cirurgias oculares prévias</label>
-              <Textarea id="cirurgias" v-model="cirurgias" rows="3" auto-resize fluid
-                placeholder="Uma por linha. Ex: Facectomia com implante de LIO — OD (2019)" />
-            </div>
-            <div class="campo campo--full">
-              <label for="medicamentos">Medicamentos em uso</label>
-              <Textarea id="medicamentos" v-model="medicamentos" rows="3" auto-resize fluid
-                placeholder="Um por linha. Ex: Latanoprosta 0,005% colírio" />
-            </div>
-            <div class="campo campo--full">
-              <label for="observacoes">Observações</label>
-              <Textarea id="observacoes" v-model="form.observacoes" rows="3" auto-resize fluid />
-            </div>
-          </div>
-        </TabPanel>
-
-        <!-- RFCAD03 — alergias medicamentosas + consentimento LGPD -->
-        <TabPanel value="3">
-          <h3 class="secao">Alergias medicamentosas</h3>
-          <Message severity="warn" :closable="false" class="aviso">
-            Alergias registradas aqui aparecem em destaque no cabeçalho do prontuário e no momento da prescrição.
+          <Message severity="secondary" :closable="false" class="aviso">
+            Antecedentes clínicos e alergias são registrados na tela do paciente, nas abas
+            <strong>Antecedentes</strong> e <strong>Alergias</strong>.
           </Message>
-
-          <table v-if="form.alergias.length" class="alergias">
-            <thead>
-              <tr><th>Substância</th><th>Reação</th><th>Gravidade</th><th /></tr>
-            </thead>
-            <tbody>
-              <tr v-for="(a, i) in form.alergias" :key="i">
-                <td>
-                  <Select v-model="a.substancia" :options="catalogos.alergias" editable placeholder="Substância" fluid />
-                </td>
-                <td><InputText v-model="a.reacao" placeholder="Ex: urticária" fluid /></td>
-                <td><Select v-model="a.gravidade" :options="GRAVIDADES" fluid /></td>
-                <td>
-                  <Button icon="pi pi-trash" text rounded severity="danger" aria-label="Remover alergia" @click="removerAlergia(i)" />
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <p v-else class="ob-muted ob-small">Nenhuma alergia registrada.</p>
-
-          <Button label="Adicionar alergia" icon="pi pi-plus" size="small" text @click="adicionarAlergia" />
 
           <h3 class="secao">Consentimento para tratamento de dados (LGPD)</h3>
           <div class="consentimento" :class="{ 'consentimento--invalido': consentimentoInvalido }">
@@ -367,17 +285,6 @@ async function salvar() {
 
 .aviso { margin-bottom: 0.75rem; }
 
-.alergias { width: 100%; border-collapse: collapse; margin-bottom: 0.5rem; }
-.alergias th {
-  text-align: left;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--p-text-muted-color);
-  padding: 0 0.35rem 0.35rem;
-}
-.alergias td { padding: 0.2rem 0.35rem; }
-.alergias td:last-child { width: 44px; }
-
 .consentimento {
   display: flex;
   align-items: flex-start;
@@ -391,10 +298,4 @@ async function salvar() {
 .consentimento--invalido { border-color: var(--p-red-400); }
 .consentimento label { font-size: 0.8125rem; line-height: 1.5; }
 
-@media (max-width: 720px) {
-  .alergias, .alergias tbody, .alergias tr, .alergias td { display: block; width: 100%; }
-  .alergias thead { display: none; }
-  .alergias tr { border: 1px solid var(--p-content-border-color); border-radius: var(--ob-radius); padding: 0.5rem; margin-bottom: 0.5rem; }
-  .alergias td { padding: 0.2rem 0; }
-}
 </style>

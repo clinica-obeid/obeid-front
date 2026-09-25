@@ -29,8 +29,7 @@
  * @property {boolean} permiteAnexos (RFEXA18)
  * @property {boolean} [destaque]   aparece nos atalhos rápidos do atendimento
  * @property {string}  descricao
- * @property {(dados: Object) => string} resumo  linha-resumo para a timeline
- * @property {{serie: Function, unidade: string, titulo: string}} [grafico] série temporal comparável
+ * @property {(dados: Object) => string} resumo  linha-resumo exibida na listagem
  * @property {ExameCampo[]} campos
  */
 
